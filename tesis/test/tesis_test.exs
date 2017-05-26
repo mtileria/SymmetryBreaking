@@ -17,3 +17,18 @@ defmodule TESISTest do
      assert 1 + 1 == 2
   end
 end
+
+
+p0 = KneighborLE.start("p0",50)
+p1 = KneighborLE.start("p1",100)
+p2 = KneighborLE.start("p2",90)
+p3 = KneighborLE.start("p3",70)
+p4 = KneighborLE.start("p4",20)
+
+KneighborLE.left_right_neighbors(p1,p4,p0)
+KneighborLE.left_right_neighbors(p2,p0,p1)
+KneighborLE.left_right_neighbors(p3,p1,p2)
+KneighborLE.left_right_neighbors(p4,p2,p3)
+KneighborLE.left_right_neighbors(p0,p3,p4)
+
+KneighborLE.start_leader_election(p1)

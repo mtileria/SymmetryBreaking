@@ -40,17 +40,20 @@ defmodule SimpleLeaderElection do
         state
 
        {:election, id_mayor} ->
+         state =
          cond do
            id_mayor > state.id ->
              IO.puts("id_mayor greater than my id #{state.name}")
              send(state.left,{:election,id_mayor})
+             state
            id_mayor == state.id ->
              IO.puts("I am the leader #{state.name}")
              state =  %{ state | leader: true}
            id_mayor < state.id ->
              IO.puts("#{id_mayor} is not the leader in #{state.name}")
+             state
          end
-         state
+
 
 
     end
@@ -74,4 +77,4 @@ SimpleLeaderElection.left_neighbor(p3,p2)
 SimpleLeaderElection.left_neighbor(p4,p3)
 SimpleLeaderElection.left_neighbor(p0,p4)
 
-SimpleLeaderElection.start_leader_election(p1)
+SimpleLeaderElection.start_leader_election(p4)
