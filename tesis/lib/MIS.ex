@@ -8,14 +8,17 @@ defmodule MIS do
   def init_state(name, master) do
     state = %{ name: name,
     neighbors: [],
-    value: nil,
-    round: 0,
     n_size: 0,
     n_receive: 0,
+    to_delete: [],
+    value: nil,
+    round: 0,
     count: 0,
     ack: 0,
     master_id: master,
     mis: false,
+    msg_count: 0,
+
   }
   state = %{state | value: :rand.uniform()}
 end
@@ -47,7 +50,8 @@ def start_nodes (n) do
   p_ids = for name <- p_names do
     pid = spawn(MIS,:run, [init_state(name,master_id)])
     case :global.register_name(name,pid) do
-      :yes -> pid
+      :yes -> 
+        pid
       :no -> :error
     end
   end
@@ -67,7 +71,6 @@ defp add_edges_topology(n) do
       for node <- nodes do
         process_by_name(node)
       end
-      IO.puts " origin #{inspect origin}, destinations : #{inspect ids_destination}"
         send(id_origin,{:add_neighborhs, ids_destination})
    end)
   end
@@ -80,8 +83,7 @@ defp process_by_name (name) do
 end
 
 defp notify_neighbors(origin, destinations,msg) do
-  for dest <- destinations do
-    send(dest,{msg,origin}) end
+  Enum.each(destinations,fn(dest) -> send(dest,{msg,origin})end)
 end
 
 
@@ -92,8 +94,8 @@ def find_MIS() do
   end
 end
 
-def set_values_test() do
-  values = [0.4,0.3,0.1,0.5,0.2]
+def set_values_test() do  ## for dummy example
+  values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
   case :global.whereis_name(:master) do
     :undefined -> :undefined
     pid -> send(pid,{:test_values, values})
@@ -105,73 +107,74 @@ def run(state) do
   my_pid = self()
   state = receive do
 
-    {:set_value, y} ->
+    {:set_value, y} ->  # just test purpose
       state = %{state | value: y}
-      IO.puts("Initial: #{state.name}: #{state.value}")
       state
 
     {:add_neighborhs, ids_destinations} ->
-      IO.puts "msg to #{inspect self} list: #{inspect ids_destinations}"
       state = %{state | neighbors: ids_destinations}
       state = %{state | n_size: length(ids_destinations)}
 
 
-    {:find_mis,x} ->
-      if x == :continue, do: state = %{state | value: :rand.uniform()}
-      IO.puts ":find_mis in #{inspect self}, value: #{state.value}}"
+    {:find_mis,x,to_delete} ->
       state = %{state | round: state.round + 1}
-      Enum.each(state.neighbors, fn (node) ->
-        send(node,{:value,state.value,my_pid,state.round})end)
-      state
+      case x do
+        :continue ->
+          state = %{state | value: :rand.uniform()}
+          state = %{state | neighbors: state.neighbors -- to_delete}
+          state = %{state | n_size: length(state.neighbors)}
+        :initial ->
+          state
+        end
+      # IO.puts ":find_mis in #{inspect self}, value: #{state.value}, neigh: #{inspect state.neighbors}"
+      case state.n_size > 0 do
+        true ->
+          Enum.each(state.neighbors, fn (node) ->
+            send(node,{:value,state.value,my_pid,state.round})end)
+            state
+        false ->
+          send(state.master_id,{:complete,:mis_member,my_pid,[],0})
+          state
+        end
 
     {:value,value,sender,round} ->
-      IO.puts ":value-recv in #{inspect self}: #{inspect value} from #{inspect sender}"
-      state = %{state | n_receive: state.n_receive + 1}
-      if (state.value < value), do: state = %{state | count: state.count + 1}
-
-      if state.n_receive == state.n_size do
-          cond do
-            state.count == state.n_size ->
-              state = %{state | mis: true}
-            true ->
-              state = %{state | n_receive: 0}
-              state = %{state | count: 0}
+        state = %{state | n_receive: state.n_receive + 1}
+        if (state.value < value), do: state = %{state | count: state.count + 1}, else: state
+          if state.n_receive == state.n_size do
+            case state.count == state.n_size do
+               true->  ## I am mis member
+                state = %{state | mis: true}
+               false -> ## All msg receive and not mis member
+                 state = %{state | n_receive: 0}
+                 state = %{state | count: 0}
+            end
+        else  ## Not receive all msg yet
+          state
         end
-      else
+          ### probably send ACK here
+        send(sender,{:ack,my_pid,round})
         state
-      end
-      ### probably send ACK here
-      send(sender,{:ack,my_pid,round})
-      state
+
 
     {:ack,sender,round} -> # sender,round
-      IO.puts ":ack-recv in #{inspect self}: from #{inspect sender} in round #{round}"
       state = %{state | ack: state.ack + 1}
       case state.ack == state.n_size do
         true ->
-          cond do
-            state.mis == true ->
-              send(state.master_id,{:mis_member,my_pid,state.neighbors})
-              notify_neighbors(my_pid,state.neighbors,:mis_member)
-              send(state.master_id,{:complete,my_pid,state.round})
+          case state.mis == true do
+            true ->
+              send(state.master_id,{:complete,:mis_member,my_pid,state.neighbors,length(state.neighbors)})
               state
-            true ->   # not mis member but complete round
-              send(state.master_id,{:complete,my_pid,state.round})
+            false ->   # not mis member but complete round
+              state = %{state | ack: 0}
+              send(state.master_id,{:complete,:not_mis_member,my_pid,[],length(state.neighbors)})
               state
-           end
+          end
+                         #  send(state.master_id,{:complete,my_pid,state.round})
         false ->     #not receive all ack yet ->  nothing
           state
         end
 
-    {:mis_member, sender} ->
-      IO.puts ":mis_member-recv in #{inspect self}: from #{inspect sender}"
-      state = %{state | neighbors: state.neighbors -- [sender] }
-      notify_neighbors(my_pid,state.neighbors,:not_mis_member)
-      state
 
-    {:not_mis_member,sender} ->
-      IO.puts ":not_mis_member-recv in #{inspect self}: from #{inspect sender}"
-      state = %{state | neighbors: state.neighbors -- [sender] }
     end
     run (state)
   end
