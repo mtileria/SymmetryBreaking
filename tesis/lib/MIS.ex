@@ -50,7 +50,7 @@ def start_nodes (n) do
   p_ids = for name <- p_names do
     pid = spawn(MIS,:run, [init_state(name,master_id)])
     case :global.register_name(name,pid) do
-      :yes -> 
+      :yes ->
         pid
       :no -> :error
     end
@@ -94,7 +94,7 @@ def find_MIS() do
   end
 end
 
-def set_values_test() do  ## for dummy example
+def set_values_test() do  ## for dummy example 0nodes file
   values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
   case :global.whereis_name(:master) do
     :undefined -> :undefined

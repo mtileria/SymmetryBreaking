@@ -8,9 +8,11 @@ MIS.find_MIS
 
 
 ########
+This is the test sequence
+
 
 iex
 c "Master.ex"
 c "MIS.ex"
-MIS.start_nodes(4096)
+MIS.start_nodes(X)  #-> x is the number of nodes
 MIS.find_MIS
