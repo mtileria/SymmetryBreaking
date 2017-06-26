@@ -7,6 +7,7 @@ defmodule MIS do
   """
   def init_state(name, master) do
     state = %{ name: name,
+    active: true,
     neighbors: [],
     n_size: 0,
     n_receive: 0,
@@ -15,10 +16,10 @@ defmodule MIS do
     round: 0,
     count: 0,
     ack: 0,
+    safe_count: 0,
     master_id: master,
     mis: false,
     msg_count: 0,
-
   }
   state = %{state | value: :rand.uniform()}
 end
@@ -83,9 +84,13 @@ defp process_by_name (name) do
 end
 
 defp notify_neighbors(origin, destinations,msg) do
-  Enum.each(destinations,fn(dest) -> send(dest,{msg,origin})end)
+  {text,mis_status} = msg
+  Enum.each(destinations,fn(dest) -> send(dest,{text,origin,mis_status})end)
 end
 
+def update_topology(my_pid,destinations) do
+  Enum.each(destinations,fn(dest) -> send(dest,{:update_network, my_pid})end)
+end
 
 def find_MIS() do
   case :global.whereis_name(:master) do
@@ -107,43 +112,44 @@ def run(state) do
   my_pid = self()
   state = receive do
 
-    {:set_value, y} ->  # just test purpose
-      state = %{state | value: y}
-      state
 
     {:add_neighborhs, ids_destinations} ->
       state = %{state | neighbors: ids_destinations}
       state = %{state | n_size: length(ids_destinations)}
 
+    {:find_mis,x} ->  # x = :continue || :initial
 
-    {:find_mis,x,to_delete} ->
       state = %{state | round: state.round + 1}
-      case x do
-        :continue ->
+      if x == :continue do
+          IO.puts "find_mis in #{inspect my_pid}, #{x}"
           state = %{state | value: :rand.uniform()}
-          state = %{state | neighbors: state.neighbors -- to_delete}
-          state = %{state | n_size: length(state.neighbors)}
-        :initial ->
+      else
           state
-        end
-      # IO.puts ":find_mis in #{inspect self}, value: #{state.value}, neigh: #{inspect state.neighbors}"
+      end
+
+
       case state.n_size > 0 do
         true ->
           Enum.each(state.neighbors, fn (node) ->
             send(node,{:value,state.value,my_pid,state.round})end)
             state
         false ->
-          send(state.master_id,{:complete,:mis_member,my_pid,[],0})
+          state = %{state | active: false}
+          state = %{state | mis: true}
+          send(state.master_id,{:complete,state.mis,state.active,my_pid,0})
           state
         end
+        state
 
     {:value,value,sender,round} ->
+      #IO.puts ("In #{inspect my_pid}  value :#{inspect sender}")
         state = %{state | n_receive: state.n_receive + 1}
         if (state.value < value), do: state = %{state | count: state.count + 1}, else: state
           if state.n_receive == state.n_size do
             case state.count == state.n_size do
                true->  ## I am mis member
                 state = %{state | mis: true}
+                state = %{state | count: 0}
                false -> ## All msg receive and not mis member
                  state = %{state | n_receive: 0}
                  state = %{state | count: 0}
@@ -151,29 +157,83 @@ def run(state) do
         else  ## Not receive all msg yet
           state
         end
-          ### probably send ACK here
-        send(sender,{:ack,my_pid,round})
+        send(sender,{:ack,my_pid})
         state
 
 
-    {:ack,sender,round} -> # sender,round
+    {:ack,sender} -> # sender,
+  #  IO.puts ("In #{inspect my_pid} recv ack from : #{inspect sender}")
       state = %{state | ack: state.ack + 1}
       case state.ack == state.n_size do
         true ->
+          IO.puts ("In #{inspect my_pid} recv all ack from")
+
           case state.mis == true do
             true ->
-              send(state.master_id,{:complete,:mis_member,my_pid,state.neighbors,length(state.neighbors)})
-              state
-            false ->   # not mis member but complete round
+              notify_neighbors(my_pid,state.neighbors,{:safe,:mis_member})
+              state = %{state | active: false}
+            false ->   # not mis member but receive all ack
               state = %{state | ack: 0}
-              send(state.master_id,{:complete,:not_mis_member,my_pid,[],length(state.neighbors)})
+              notify_neighbors(my_pid,state.neighbors,{:safe,:not_mis_member})
               state
           end
-                         #  send(state.master_id,{:complete,my_pid,state.round})
         false ->     #not receive all ack yet ->  nothing
           state
         end
+        state
 
+#   send(state.master_id,{:complete,:mis_member,my_pid,state.neighbors,length(state.neighbors)})
+
+        {:safe,origin,neighbor_mis} ->
+        #  IO.puts ("In #{inspect my_pid} recv safe from : #{inspect origin}, and #{neighbor_mis}, #{state.safe_count + 1}")
+          state = %{state | safe_count: state.safe_count + 1}
+            cond  do
+              neighbor_mis == :mis_member ->
+                state = %{state | active: false}
+              true ->   # complete round but neighbor is not mis member
+                state
+            end
+
+          if state.safe_count == state.n_size do
+                state = %{state | safe_count: 0}
+                  cond do
+                    state.active == true ->  ## safe and active for next round
+                      update_topology(my_pid,state.neighbors)
+                      state
+                    true ->    ## safe and not active for next round
+                      send(state.master_id,{:complete,state.mis,state.active,my_pid,state.n_size})
+                      state
+                  end
+              end
+              state
+
+          {:update_network, sender} ->
+            #IO.puts ("In #{inspect my_pid} recv update_netw from : #{inspect sender}")
+            send(sender,{:update_reply,my_pid,state.active})
+            state
+
+          {:update_reply,sender,active} ->
+            # IO.puts ("In #{inspect my_pid} recv update_reply from : #{inspect sender}, status: #{active}
+            # count: #{state.count}, size: #{state.n_size}")
+            state = %{state | count: state.count + 1}
+            cond do
+              active == false ->
+                state = %{state | to_delete: state.to_delete ++ [sender]}
+              active == true ->
+                state
+            end
+
+            if state.count == state.n_size do
+              IO.puts "recv all update_reply"
+                num_msg = state.n_size
+                state = %{state | neighbors: state.neighbors -- state.to_delete}
+                state = %{state | to_delete: []}
+                state = %{state | n_size: length(state.neighbors)}
+                state = %{state | count: 0}
+                send(state.master_id,{:complete,state.mis,state.active,my_pid,num_msg})
+                state
+            end
+            state
 
     end
     run (state)
