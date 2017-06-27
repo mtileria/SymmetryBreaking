@@ -2,10 +2,16 @@
 iex
 c "Master.ex"
 c "MIS.ex"
-MIS.start_nodes(0)
-MIS.set_values_test
+MIS.start_nodes(8192)
+MIS.find_MIS
+-----------
+
+iex
+MIS.start_nodes(32768)
 MIS.find_MIS
 
+
+#MIS.set_values_test
 
 ########
 This is the test sequence
