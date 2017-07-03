@@ -22,3 +22,21 @@ c "Master.ex"
 c "MIS.ex"
 MIS.start_nodes(X)  #-> x is the number of nodes
 MIS.find_MIS
+
+
+
+###
+
+Alpha Synchronizer test
+iex
+c "Alpha.ex"
+ASyncronizer.create_processes([:p1,:p2,:p3])
+ASyncronizer.sync_send(:p1,"Hi from p1")
+ASyncronizer.sync_send(:p2,"Hi from p2")
+ASyncronizer.sync_send(:p3,"Hi from p3")
+
+
+
+  ASyncronizer.sync_send(:p5,"Hi AA")
+  ASyncronizer.sync_send(:p5,"Hi BB")
+  ASyncronizer.sync_send(:p5,"Hi CC")
