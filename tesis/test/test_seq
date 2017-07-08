@@ -35,8 +35,10 @@ ASyncronizer.sync_send(:p1,"Hi from p1")
 ASyncronizer.sync_send(:p2,"Hi from p2")
 ASyncronizer.sync_send(:p3,"Hi from p3")
 
-
-
-  ASyncronizer.sync_send(:p5,"Hi AA")
-  ASyncronizer.sync_send(:p5,"Hi BB")
-  ASyncronizer.sync_send(:p5,"Hi CC")
+****************************************
+iex
+c "Controller.ex"
+c "synchronous_mis.ex"
+Controller.start_nodes(6)
+:global.whereis_name("A0")
+Controller.start_mis
