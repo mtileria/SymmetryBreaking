@@ -95,13 +95,7 @@ def find_MIS() do
   end
 end
 
-def set_values_test() do  ## for dummy example 0nodes file
-  values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
-  case :global.whereis_name(:master) do
-    :undefined -> :undefined
-    pid -> send(pid,{:test_values, values})
-  end
-end
+
 
 
 def run(state) do

@@ -2,20 +2,22 @@ defmodule Alpha do
   @moduledoc """
     Implementation of Alpha Synchronizer
   """
-  def init_state(name) do
-    %{name: name
-	    buffer: %{},
-      ack_missing: %{},
-      destinations: [],
-      safe: %{},
-      count: 0,
-      round: 0,
-      msg_count: 0,
-      source_id: nil,
-  }
+
+def init_state(name) do
+  %{name: name,
+    buffer: %{},
+    ack_missing: %{},
+    destinations: [],
+    safe: %{},
+    count: 0,
+    round: 0,
+    msg_count: 0,
+    node: nil,
+}
 end
 
   def start(name) do
+    name = "Sync-" <> name
     pid = spawn(Alpha,:run, [init_state(name)])
     case :global.register_name(name,pid) do
       :yes -> pid
@@ -38,6 +40,7 @@ end
     end
   end
 
+
   def enable_sync_recv(pid, round, messages,name) do
     IO.puts "Syncronuous receive in #{name}
      \n #{inspect messages} "
@@ -47,32 +50,33 @@ end
     my_pid = self()
     state = receive do
 
-      {:destinations, pids} ->
-        state = %{state | destinations: pids  -- [my_pid]}
+      {:main_process,pid} ->
+        state = %{state | node: pid}
+
+      {:add_neighbors,sync_pids} ->
+          state = %{state | destinations: sync_pids}
 
       {:sync_send, messages} ->
-      #  IO.puts ("In #{inspect my_pid} sync_send #{messages}")
-        msg = messages
-        #{destinations,msg} = messages
+        # IO.puts ("In #{inspect my_pid} sync_send #{inspect messages}")
         state = %{state | round: state.round + 1}
-        #state = %{state | destinations: distinations}
-        state = %{state | ack_missing: Map.put(state.ack_missing, state.round, state.destinations) }
+        {destinations,type,value} = messages
+        state = %{state | destinations: destinations}
+        state = %{state | ack_missing:
+          Map.put(state.ack_missing, state.round, state.destinations)}
         Enum.each(state.destinations, fn(dest) ->
-          send(dest,{:async_msg,state.round,msg,my_pid})end)
+          send(dest,{:async_msg,state.round,type,value,my_pid})end)
         state
 
-      {:async_msg,round,msg,origin} ->
-      #  IO.puts ("In #{inspect my_pid} async_msg, round #{round}")
+      {:async_msg,round,type,value,origin} ->
         if !(Map.has_key?(state.buffer,round)) do
-          state = %{ state | buffer: Map.put(state.buffer,round,[{origin,msg}])}
+          state = %{ state | buffer: Map.put(state.buffer,round,[{type,value}])}
         else
-          state = update_in(state,[:buffer,round], fn x -> x ++ [{msg,origin}]end)
+          state = update_in(state,[:buffer,round], fn x -> x ++ [{type,value}]end)
         end
         send(origin,{:async_ack,my_pid,round})
         state
 
       {:async_ack, origin, round} ->
-      #  IO.puts ("In #{inspect my_pid} async_ack recv in round#{round} from #{inspect origin}")
         state = update_in(state,[:ack_missing,round], fn x -> x -- [origin] end)
         if (length(Map.get(state.ack_missing, round)) == 0) do
           Enum.each(state.destinations, fn(dest) ->
@@ -80,20 +84,25 @@ end
         end
         state
 
-        {:safe, round, origin} ->
-          #IO.puts ("In #{state.name} safe from #{inspect origin} round #{round}")
-          if !(Map.has_key?(state.safe,round)) do
-            state = %{ state | safe: Map.put(state.safe,round,[origin])}
-          else
-            state = update_in(state,[:safe,round], fn x -> x ++ [origin] end)
-          end
+      {:safe, round, origin} ->
+        if !(Map.has_key?(state.safe,round)) do
+          state = %{ state | safe: Map.put(state.safe,round,[origin])}
+        else
+          state = update_in(state,[:safe,round], fn x -> x ++ [origin] end)
+        end
 
-          if (length(Map.get(state.safe, round)) == length(state.destinations)) do
-          #  IO.puts "Ready to safaly receive in #{inspect my_pid}"
-            enable_sync_recv(my_pid,round, Map.get(state.buffer,round),state.name)
-          end
+        if (length(Map.get(state.safe, round)) == length(state.destinations)) do
+          {messages,tmp_buffer} = Map.pop(state.buffer,round)
+          state = %{state | buffer: tmp_buffer }
+          {type,_} = List.first(messages)
+          send state.node,{:sync_recv, type, round, messages}
+        end
+        state
+
+        {:new_topology,active_nodes} ->
+          state = %{ state | destinations: active_nodes}
+          send(state.node,{:topology_ok})
           state
-
 
     end
     run (state)
