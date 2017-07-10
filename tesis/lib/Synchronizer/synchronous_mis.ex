@@ -79,9 +79,6 @@ end
         state
 
         {:sync_recv,:value,round,buffer} ->
-          if round >= 2 do
-            send(state.master_id,{:sync_recv_value})
-          end
           is_min = Enum.all?(buffer,fn {x,y} -> state.value < y end)
           # IO.puts "sync_recv in #{state.name}, my_value_min = #{is_min}"
           case is_min do
@@ -90,14 +87,15 @@ end
             false ->
               state
           end
-          sync_send(state.synchronizer_id,
-            {Map.values(state.destinations),:mis_status,state.mis})
+          send(state.master_id,{:first_phase})
           state
 
+          {:second_phase} ->
+            sync_send(state.synchronizer_id,
+              {Map.values(state.destinations),:mis_status,state.mis})
+            state
+
         {:sync_recv,:mis_status,round,buffer} ->
-          if round >= 3 do
-            send(state.master_id,{:sync_recv_status})
-          end
           neighbor_mis = Enum.any?(buffer,fn {x,mis} -> mis == true end)
           if (neighbor_mis == true || state.mis == true)  do
             state = %{state | active: false}
@@ -125,19 +123,19 @@ end
             state
         end
         if state.reply == neighbors_size do
-            # IO.puts "recv all update_reply in #{inspect my_pid}"
+            IO.puts "recv all update_reply in #{inspect my_pid}"
             state = %{state | destinations: Map.drop(state.destinations,state.to_delete)}
             state = %{state | to_delete: []}
             state = %{state | reply: 0}
-            send(state.synchronizer_id,{:new_topology,Map.values(state.destinations)})
-        #    send(state.master_id,{:update_complete,my_pid,neighbors_size})
+            # send(state.synchronizer_id,{:new_topology,Map.values(state.destinations)})
+            send(state.master_id,{:update_complete,my_pid,neighbors_size})
             state
         end
         state
 
-        {:topology_ok} ->
-          send(state.master_id,{:update_complete,my_pid,neighbors_size})
-          state
+        # {:topology_ok} ->
+        #   send(state.master_id,{:update_complete,my_pid,neighbors_size})
+        #   state
 
     end
     run (state)

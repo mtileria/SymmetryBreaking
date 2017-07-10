@@ -40,6 +40,6 @@ iex
 c "Controller.ex"
 c "synchronous_mis.ex"
 c "Alpha.ex"
-Controller.start_nodes(16)
+Controller.start_nodes(64)
 #Controller.set_values_test
 Controller.start_mis

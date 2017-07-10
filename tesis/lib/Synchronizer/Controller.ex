@@ -15,8 +15,7 @@ defmodule Controller do
       next_actives: [],
       count_replies: 0,
       msg_count: %{send: 0, control: 0},
-      control: 0,
-      control_value: 0,
+      phase_control: 0,
     }
   end
 
@@ -94,6 +93,14 @@ def run_master(state) do
           send(pid,{:find_mis,:initial})end)
         state
 
+        {:first_phase} ->
+          state = %{state | phase_control: state.phase_control + 1}
+          if state.phase_control == length(state.processes) do
+            state = %{state | phase_control: 0}
+            Enum.each(state.processes, fn(x) -> send x,{:second_phase}end)
+          end
+          state
+
       {:complete,mis,active,sender,msg_count,round} -> # sender,round
         # IO.puts "In master recv complete from #{inspect sender}, active: #{active}
         # size: #{state.active_size}, count: #{state.count}"
@@ -139,7 +146,7 @@ def run_master(state) do
 
         {:update_complete,sender,size} ->
           state = %{state | count_replies: state.count_replies + 1}
-          # IO.puts("update complete from #{inspect sender}, expected #{state.active_size}!")
+          IO.puts("update complete from #{inspect sender}, expected #{state.active_size}!")
           if (state.count_replies == state.active_size) do
              IO.puts("network update complete! start next round for
              #{length(state.processes)}!")
@@ -148,28 +155,16 @@ def run_master(state) do
               send(pid,{:find_mis,:continue})end)
           end
           state
-
-          {:sync_recv_status} ->
-            state = %{state | control: state.control + 1}
-            IO.puts "R status: #{inspect state.control}"
-            state
-
-            {:sync_recv_value} ->
-              state = %{state | control_value: state.control_value + 1}
-              IO.puts "R value: #{inspect state.control_value}"
-              state
-
-
-
-
-        # IO.puts("Finish in ROUND #{round} process: #{inspect sender} add to MIS, #{state.count}")
-        # IO.puts("Finish in ROUND #{round} process: #{inspect sender} NOT MIS, #{state.count}")
-
-
-
-
-        state
-
+          #
+          # {:sync_recv_status} ->
+          #   state = %{state | control: state.control + 1}
+          #   IO.puts "R status: #{inspect state.control}"
+          #   state
+          #
+          #   {:sync_recv_value} ->
+          #     state = %{state | control_value: state.control_value + 1}
+          #     IO.puts "R value: #{inspect state.control_value}"
+          #     state
 
     end
     run_master(state)
