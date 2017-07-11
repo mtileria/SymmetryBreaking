@@ -1,18 +1,26 @@
 defmodule BetaMaster do
 
 
-	def init_state(name, processes) do
+	def init_state(name) do
 		%{
 		  name: name,
-		  processes: processes,
-		  replies: length(processes) - 1,
+		  processes: [],
+		  count: 0,
+		  replies: 0,
 		  }
 	end
 
-	def spanning_tree (root) do
-		case :global.whereis_name(:master) do
+	def spanning_tree (name) do
+		case :global.whereis_name(name) do
 			undefined -> :error
-			pid -> send pid, {:start,:mis}
+			pid -> send pid, {:spanning_tree,start}
+		end
+	end
+	
+	def start_mis() do 
+		case :global.whereis_name(name) do
+			undefined -> :error
+			pid -> send pid, {:search_mis,:start}
 		end
 	end
 
@@ -24,19 +32,14 @@ defmodule BetaMaster do
 	state =
 	receive do
 
-		{:spanning_tree, root} ->
-			send root,{:start,:spanning_tree}
-			state
-
-
 		{:complete_tree} ->
 	  		state = %{state | replies: state.replies - 1}
 			if state.replies  == 0, do: IO.puts("Tree constructed")
 			state
 
-		{:start,:mis} ->
+		{:search,:mis} ->
 			Enum.each(state.processes, fn dest ->
-				send dest,{:start,:mis}end)
+				send dest,{:search,:start}end)
 			state
 
 	end
