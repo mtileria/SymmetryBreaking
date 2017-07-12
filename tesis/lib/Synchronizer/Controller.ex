@@ -5,17 +5,15 @@ defmodule Controller do
     %{
       name: name,
       processes: [],
-      to_delete: [],
       size: 0,
       mis: [],
       count: 0,
       round: 0,
       not_mis: 0,
-      active_size: 0,
-      next_actives: [],
       count_replies: 0,
+      new_mis: 0,
+      actives: 0,
       msg_count: %{send: 0, control: 0},
-      phase_control: 0,
     }
   end
 
@@ -86,77 +84,71 @@ def run_master(state) do
       {:add_processes_list,p_ids} ->
         state = %{state | processes: p_ids}
         state = %{state | size: length(p_ids)}
-        state = %{state | active_size: length(p_ids)}
 
       {:start_mis} ->
         Enum.each(state.processes, fn(pid) ->
           send(pid,{:find_mis,:initial})end)
         state
 
-      {:complete,mis,active,sender,msg_count,round} -> # sender,round
-        # IO.puts "In master recv complete from #{inspect sender}, active: #{active}
-        # size: #{state.active_size}, count: #{state.count}"
-        state = %{state | count: state.count + 1}
+        {:alive} ->
+          safe = Enum.all?(state.processes, fn x -> Process.alive?(x) end )
+          IO.puts "All alive = #{safe}"
+          state
 
+        {:processes,sender} ->
+          send sender,{:list,state.processes}
+          state
+
+        {:controlador,first_status} ->
+          Enum.each(state.processes, fn(x) -> send x,{:status,self,first_status} end)
+          state
+
+        {:reply,sender,status} ->
+          IO.puts("origin #{inspect sender} status: #{status}")
+          state
+
+
+
+      {:complete,type,mis,active,sender,msg_count,round} -> # sender,round
+        #  IO.puts "In master recv complete from #{inspect sender}, active: #{active}
+        #   count: #{state.count}"
+        state = %{state | count: state.count + 1}
+        # IO.puts("tt: #{state.count} " )
         state = put_in(state, [:msg_count,:send], state.msg_count.send + msg_count)
         state = put_in(state, [:msg_count,:control], state.msg_count.control + 1)
         cond  do
-          mis == true && active == false ->  ## node is part of MIS
-            state = %{state | mis: state.mis ++ [sender]}
-            state = %{state | to_delete: state.to_delete ++ [sender]}
-          mis == false && active == false -> ## node is neighbor of node in MIS
-            state = %{state | not_mis: state.not_mis + 1}
-            state = %{state | to_delete: state.to_delete ++ [sender]}
-          mis == false && active == true ->  ## node will continue in next round
+          type == :dummy ->
             state
-            # state = %{state | next_actives: state.next_actives ++ [sender]}
+          active == false && mis == true->  ## node is part of MIS
+            state = %{state | mis: state.mis ++ [sender]}
+            state = %{state | new_mis: state.new_mis + 1}
+          active  == false && mis == false -> ## node is neighbor of node in MIS
+            state = %{state | not_mis: state.not_mis + 1}
+          active == true && mis == false ->  ## node will continue in next round
+            state = %{state | actives: state.actives + 1}
         end
 
-        if state.count == state.active_size do
+        if state.count == length(state.processes) do
+          IO.puts("ROUND #{state.round + 1} FINISH!!! New In MIS #{state.new_mis}, actives: #{state.actives} ")
           state = %{state | count: 0}
           state = %{state | round: state.round + 1}
-          state = %{state | processes: state.processes -- state.to_delete}
-          state = %{state | active_size: length(state.processes)}
-          state = %{state | to_delete: []}
-           IO.puts("ROUND #{state.round} FINISH!!!!!!!
-            actives: #{inspect state.processes}, size:#{state.active_size} ")
+          state = %{state | new_mis: 0}
+          state = %{state | actives: 0}
 
-          case state.active_size == 0 do
+          case length(state.mis) + state.not_mis == length(state.processes) do
               true ->
-                IO.puts("MIS complete: #{inspect state.mis}, MIS number nodes: #{length(state.mis)},
+                IO.puts("\n\n ****MIS complete*****: #{inspect state.mis}, MIS number nodes: #{length(state.mis)},
                 Number rounds #{inspect state.round} , Number of messages + ack:
                  #{state.msg_count.send * 2} , extra msg: #{state.msg_count.control}
                    network size: #{length(state.processes)}")
                 state
               false ->
                 Enum.each(state.processes, fn(pid) ->
-                  send(pid,{:update_topology})end)
+                  send(pid,{:find_mis,:continue})end)
                   state
           end
         end
         state
-
-        {:update_complete,sender,size} ->
-          state = %{state | count_replies: state.count_replies + 1}
-      #    IO.puts("update complete from #{inspect sender}, expected #{state.active_size}!")
-          if (state.count_replies == state.active_size) do
-             IO.puts("network update complete! start next round for
-             #{length(state.processes)}!")
-            state = %{state | count_replies: 0}
-            Enum.each(state.processes, fn(pid) ->
-              send(pid,{:find_mis,:continue})end)
-          end
-          state
-          #
-          # {:sync_recv_status} ->
-          #   state = %{state | control: state.control + 1}
-          #   IO.puts "R status: #{inspect state.control}"
-          #   state
-          #
-          #   {:sync_recv_value} ->
-          #     state = %{state | control_value: state.control_value + 1}
-          #     IO.puts "R value: #{inspect state.control_value}"
-          #     state
 
     end
     run_master(state)

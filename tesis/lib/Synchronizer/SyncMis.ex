@@ -16,6 +16,8 @@ defmodule SyncMIS do
       value: :rand.uniform(),
       mis: false,
       reply: 0,
+      step: nil,
+      count_phase: 0,
   }
 
 end
@@ -60,6 +62,7 @@ end
 
 
       {:find_mis,x} ->  # x = :continue || :initial
+      state = %{state | step: :find_mis}
 
         if x == :continue do
           state = %{state | value: :rand.uniform()}
@@ -78,19 +81,29 @@ end
         state
 
         {:sync_recv,:value,round,buffer} ->
+          state = %{state | step: :recv_value}
+
           is_min = Enum.all?(buffer,fn {x,y} -> state.value < y end)
-          IO.puts "sync_recv in #{state.name}, my_value_min = #{is_min}"
+          # IO.puts "sync_recv in #{state.name}, my_value_min = #{is_min}"
           case is_min do
             true ->
               state = %{state | mis: true}
             false ->
               state
           end
-          sync_send(state.synchronizer_id,{:mis_status,state.mis})
+          Enum.each(Map.keys(state.destinations), fn(x) -> send x,{:first_phase}end)
           state
 
+        {:first_phase} ->
+          state = %{state | count_phase: state.count_phase + 1}
+          if state.count_phase == Enum.count(state.destinations) do
+            state = %{state | count_phase: 0}
+            sync_send(state.synchronizer_id,{:mis_status,state.mis})
+          end
+          state
 
         {:sync_recv,:mis_status,round,buffer} ->
+          state = %{state | step: :recv_status}
           neighbor_mis = Enum.any?(buffer,fn {x,mis} -> mis == true end)
           if (neighbor_mis == true || state.mis == true)  do
             state = %{state | active: false}
@@ -101,6 +114,16 @@ end
           send(state.master_id,{:complete,:real,state.mis,state.active,
             my_pid,network_size,state.round})
           state
+
+          {:status,origin,first_status} ->
+            if state.step != first_status do
+              send origin,{:reply,my_pid,state.step}
+            end
+            state
+
+            {:step} ->
+              IO.puts("In #{inspect my_pid}, step #{state.step}")
+              state
     end
     run (state)
   end
@@ -113,18 +136,41 @@ end
       receive do
 
         {:find_mis,:continue} ->
+          state = %{state | step: :find_mis}
           sync_send(state.synchronizer_id,{:value,1})
           state
 
           {:sync_recv,:value,round,buffer} ->
-            sync_send(state.synchronizer_id,
-              {:mis_status,false})
+            state = %{state | step: :recv_value}
+            Enum.each(Map.keys(state.destinations), fn(x) -> send x,{:first_phase}end)
             state
 
 
+            {:first_phase} ->
+              state = %{state | count_phase: state.count_phase + 1}
+              if state.count_phase == Enum.count(state.destinations) do
+                state = %{state | count_phase: 0}
+                sync_send(state.synchronizer_id,
+                  {:mis_status,false})
+              end
+              state
+
           {:sync_recv,:mis_status,round,buffer} ->
+            state = %{state | step: :recv_status}
               send(state.master_id,{:complete,:dummy,state.mis,state.active,
                 my_pid,network_size,state.round})
+              state
+
+
+
+          {:status,origin,first_status} ->
+            if state.step != first_status do
+              send origin,{:reply,my_pid,state.step}
+            end
+            state
+
+            {:step} ->
+              IO.puts("In #{inspect my_pid}, step #{state.step}")
               state
 
       end

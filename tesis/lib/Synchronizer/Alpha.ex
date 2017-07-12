@@ -59,11 +59,10 @@ end
       {:sync_send, messages} ->
         # IO.puts ("In #{inspect my_pid} sync_send #{inspect messages}")
         state = %{state | round: state.round + 1}
-        "HERE delete destinations from messages, not send in main process"
-        {destinations,type,value} = messages
+        {type,value} = messages
         state = %{state | ack_missing:
           Map.put(state.ack_missing, state.round, state.destinations)}
-        Enum.each(destinations, fn(dest) ->
+        Enum.each(state.destinations, fn(dest) ->
           send(dest,{:async_msg,state.round,type,value,my_pid})end)
         state
 
@@ -79,7 +78,7 @@ end
       {:async_ack, origin, round} ->
         state = update_in(state,[:ack_missing,round], fn x -> x -- [origin] end)
         if (length(Map.get(state.ack_missing, round)) == 0) do
-          Enum.each(Map.get(state.destinations,round), fn(dest) ->
+          Enum.each(state.destinations, fn(dest) ->
             send(dest,{:safe,round,my_pid})end)
         end
         state
@@ -91,21 +90,13 @@ end
           state = update_in(state,[:safe,round], fn x -> x ++ [origin] end)
         end
         # IO.puts "In round #{round}: #{inspect Map.get(state.safe, round)},\n #{inspect Map.get(state.destinations,round)}"
-      "ACA ESTA EL PROBLEMA, A VECES STATE.DESTINATIONS EN ROUND NO EXISTE TODAVIA
-        lo que voy hacer es que antes de empezar la ronda el proceso ya sepa
-        de su topologia"
-        if (length(Map.get(state.safe, round)) == length(Map.get(state.destinations,round))) do
+        if (length(Map.get(state.safe, round)) == length(state.destinations)) do
           {messages,tmp_buffer} = Map.pop(state.buffer,round)
           state = %{state | buffer: tmp_buffer }
           {type,_} = List.first(messages)
           send state.node,{:sync_recv, type, round, messages}
         end
         state
-
-        # {:new_topology,active_nodes} ->
-        #   state = %{ state | destinations: active_nodes}
-        #   send(state.node,{:topology_ok})
-        #   state
 
     end
     run (state)
