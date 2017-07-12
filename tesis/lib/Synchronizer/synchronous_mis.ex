@@ -47,7 +47,7 @@ end
 
   def run(state) do
     my_pid = self()
-    neighbors_size = Enum.count(state.destinations)
+    network_size = Enum.count(state.destinations)
 
     state = receive do
 
@@ -87,13 +87,10 @@ end
             false ->
               state
           end
-          send(state.master_id,{:first_phase})
+          sync_send(state.synchronizer_id,
+            {Map.values(state.destinations),:mis_status,state.mis})
           state
 
-          {:second_phase} ->
-            sync_send(state.synchronizer_id,
-              {Map.values(state.destinations),:mis_status,state.mis})
-            state
 
         {:sync_recv,:mis_status,round,buffer} ->
           neighbor_mis = Enum.any?(buffer,fn {x,mis} -> mis == true end)
@@ -101,7 +98,7 @@ end
             state = %{state | active: false}
           end
           send(state.master_id,{:complete,state.mis,state.active,
-            my_pid,neighbors_size,state.round})
+            my_pid,network_size,state.round})
           state
 
       {:update_topology} ->
@@ -122,19 +119,19 @@ end
           active == true ->
             state
         end
-        if state.reply == neighbors_size do
+        if state.reply == network_size do
             IO.puts "recv all update_reply in #{inspect my_pid}"
             state = %{state | destinations: Map.drop(state.destinations,state.to_delete)}
             state = %{state | to_delete: []}
             state = %{state | reply: 0}
             # send(state.synchronizer_id,{:new_topology,Map.values(state.destinations)})
-            send(state.master_id,{:update_complete,my_pid,neighbors_size})
+            send(state.master_id,{:update_complete,my_pid,network_size})
             state
         end
         state
 
         # {:topology_ok} ->
-        #   send(state.master_id,{:update_complete,my_pid,neighbors_size})
+        #   send(state.master_id,{:update_complete,my_pid,network_size})
         #   state
 
     end

@@ -1,4 +1,4 @@
-defmodule Alpha do
+defmodule MyAlpha do
   @moduledoc """
     Implementation of Alpha Synchronizer
   """
@@ -7,7 +7,7 @@ def init_state(name) do
   %{name: name,
     buffer: %{},
     ack_missing: %{},
-    destinations: [],
+    destinations: %{},
     safe: %{},
     count: 0,
     round: 0,
@@ -18,7 +18,7 @@ end
 
   def start(name) do
     name = "Sync-" <> name
-    pid = spawn(Alpha,:run, [init_state(name)])
+    pid = spawn(MyAlpha,:run, [init_state(name)])
     case :global.register_name(name,pid) do
       :yes -> pid
       :no  -> :error
@@ -53,16 +53,16 @@ end
       {:main_process,pid} ->
         state = %{state | node: pid}
 
-      {:add_neighbors,sync_pids} ->
-           state = %{state | destinations: sync_pids}
-
       {:sync_send, messages} ->
         # IO.puts ("In #{inspect my_pid} sync_send #{inspect messages}")
         state = %{state | round: state.round + 1}
-        "HERE delete destinations from messages, not send in main process"
         {destinations,type,value} = messages
+        state = %{state | destinations: Map.put(state.destinations,state.round,destinations)}
         state = %{state | ack_missing:
-          Map.put(state.ack_missing, state.round, state.destinations)}
+         Map.put(state.ack_missing, state.round, destinations)}
+        if (Map.has_key?(state.safe, state.round)) do
+          send(my_pid,{:control,state.round})
+        end
         Enum.each(destinations, fn(dest) ->
           send(dest,{:async_msg,state.round,type,value,my_pid})end)
         state
@@ -90,17 +90,18 @@ end
         else
           state = update_in(state,[:safe,round], fn x -> x ++ [origin] end)
         end
-        # IO.puts "In round #{round}: #{inspect Map.get(state.safe, round)},\n #{inspect Map.get(state.destinations,round)}"
-      "ACA ESTA EL PROBLEMA, A VECES STATE.DESTINATIONS EN ROUND NO EXISTE TODAVIA
-        lo que voy hacer es que antes de empezar la ronda el proceso ya sepa
-        de su topologia"
-        if (length(Map.get(state.safe, round)) == length(Map.get(state.destinations,round))) do
-          {messages,tmp_buffer} = Map.pop(state.buffer,round)
-          state = %{state | buffer: tmp_buffer }
-          {type,_} = List.first(messages)
-          send state.node,{:sync_recv, type, round, messages}
+        if (Map.has_key?(state.destinations, round)) do
+          send(my_pid,{:control,round})
         end
         state
+
+        {:control,round} ->
+          if (length(Map.get(state.safe, round)) == length(Map.get(state.destinations,round))) do
+            {messages,tmp_buffer} = Map.pop(state.buffer,round)
+            state = %{state | buffer: tmp_buffer }
+            {type,_} = List.first(messages)
+            send state.node,{:sync_recv, type, round, messages}
+          end
 
         # {:new_topology,active_nodes} ->
         #   state = %{ state | destinations: active_nodes}

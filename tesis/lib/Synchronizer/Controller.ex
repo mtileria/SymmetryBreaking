@@ -93,14 +93,6 @@ def run_master(state) do
           send(pid,{:find_mis,:initial})end)
         state
 
-        {:first_phase} ->
-          state = %{state | phase_control: state.phase_control + 1}
-          if state.phase_control == length(state.processes) do
-            state = %{state | phase_control: 0}
-            Enum.each(state.processes, fn(x) -> send x,{:second_phase}end)
-          end
-          state
-
       {:complete,mis,active,sender,msg_count,round} -> # sender,round
         # IO.puts "In master recv complete from #{inspect sender}, active: #{active}
         # size: #{state.active_size}, count: #{state.count}"
@@ -122,7 +114,7 @@ def run_master(state) do
 
         if state.count == state.active_size do
           state = %{state | count: 0}
-          state = %{state | round: round}
+          state = %{state | round: state.round + 1}
           state = %{state | processes: state.processes -- state.to_delete}
           state = %{state | active_size: length(state.processes)}
           state = %{state | to_delete: []}
@@ -146,7 +138,7 @@ def run_master(state) do
 
         {:update_complete,sender,size} ->
           state = %{state | count_replies: state.count_replies + 1}
-          IO.puts("update complete from #{inspect sender}, expected #{state.active_size}!")
+      #    IO.puts("update complete from #{inspect sender}, expected #{state.active_size}!")
           if (state.count_replies == state.active_size) do
              IO.puts("network update complete! start next round for
              #{length(state.processes)}!")
