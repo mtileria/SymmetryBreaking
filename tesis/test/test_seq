@@ -1,9 +1,12 @@
+## For Global Synchronizer
+
 :global.whereis_name("A0")
 iex
-c "Master.ex"
+c "GlobalSync.ex"
 c "MIS.ex"
-MIS.start_nodes(8192)
-MIS.find_MIS
+GlobalSync.start_nodes(16384)
+#GlobalSync.set_values_test
+GlobalSync.start_mis
 -----------
 
 iex
