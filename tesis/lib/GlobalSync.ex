@@ -139,7 +139,9 @@ def run_master(state) do
         state = %{state | count: state.count + 1}
         {num_msg,sync_overhead} = update_message_counter(state.msg_counter,msg_count,state.round)
         state = put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})
-        cond  do
+
+         state =
+          cond  do
           active == false && mis == true ->  ## node is part of MIS
             state = %{state | mis: state.mis ++ [sender]}
             state = %{state | to_delete: state.to_delete + 1}
@@ -149,6 +151,7 @@ def run_master(state) do
           true ->  ## node active for next round
             state = %{state | actives: state.actives ++ [sender]}
         end
+
 
         if state.count == state.active_size do
           IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}, next actives: #{length(state.actives)}, inactive: #{state.to_delete}, nodes remove not MIS: #{state.to_delete - state.new_mis}, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
@@ -169,8 +172,10 @@ def run_master(state) do
                 send(pid,{:update_topology})end)
                 state
           end
+        else
+          state
         end
-        state
+
 
         {:update_complete} ->
           state = %{state | count_topology: state.count_topology + 1}
@@ -178,10 +183,13 @@ def run_master(state) do
             state = %{state | count_topology: 0}
             next_round = state.actives
             state = %{state | actives: []}
-            Enum.each(next_round, fn(pid) ->
-              send(pid,{:find_mis,:continue})end)
+            Enum.each(next_round, fn(pid) -> send(pid,{:find_mis,:continue})end)
+            state
+          else
+            state
           end
-          state
+          
+
 
     end
     run_master(state)

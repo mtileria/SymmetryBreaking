@@ -40,13 +40,14 @@ def run(state) do
 
     {:find_mis,x} ->  # x = :continue || :initial
 
+     state =
       if x == :continue do
           state = %{state | value: :rand.uniform()}
       else
           state
       end
 
-
+      state =
       case state.n_size > 0 do
         true ->
           Enum.each(state.neighbors, fn (node) ->
@@ -59,12 +60,14 @@ def run(state) do
           send(state.master_id,{:complete,state.mis,state.active,my_pid,{0,0}})
           state
         end
-        state
+
 
     {:value,value,sender,} ->
       #IO.puts ("In #{inspect my_pid}  value :#{inspect sender}")
         state = %{state | n_receive: state.n_receive + 1}
-        if (state.value < value), do: state = %{state | count: state.count + 1}, else: state
+        state = if (state.value < value),
+          do: state = %{state | count: state.count + 1}, else: state
+        state =
           if state.n_receive == state.n_size do
             case state.count == state.n_size do
                true->  ## I am mis member
@@ -85,34 +88,39 @@ def run(state) do
     {:ack} ->
   #  IO.puts ("In #{inspect my_pid} recv ack from : #{inspect sender}")
       state = %{state | ack: state.ack + 1}
+      state =
       if state.ack == state.n_size do
           # IO.puts ("In #{inspect my_pid} recv all ack, size: #{state.n_size}")
           case state.mis == true do
             true ->
               notify_neighbors(state.neighbors,{:safe,:mis_member})
+              state
             false ->   # not mis member but receive all ack
               state = %{state | ack: 0}
               notify_neighbors(state.neighbors,{:safe,:not_mis_member})
               state
           end
+      else
+        state
       end
-      state
 
 
         {:safe,neighbor_mis} ->
         #  IO.puts ("In #{inspect my_pid} recv safe from : #{inspect origin}, and #{neighbor_mis}, #{state.safe_count + 1}")
           state = %{state | safe_count: state.safe_count + 1}
-          if neighbor_mis == :mis_member  do
-           # complete round and neighbor is MIS member
-              state = %{state | active: false}
-          end
+          state =
+          if neighbor_mis == :mis_member, do:
+              state = %{state | active: false}, else: state
+          state =
           if state.safe_count == state.n_size do
               state = %{state | safe_count: 0}
               send(state.master_id,{:complete,
                 state.mis,state.active,my_pid,{4*state.n_size,3*state.n_size}})
               state
+          else
+            state
           end
-          state
+
 
           {:update_topology} ->
               Enum.each(state.neighbors,fn(dest) ->
@@ -128,13 +136,14 @@ def run(state) do
             # IO.puts ("In #{inspect my_pid} recv update_reply from : #{inspect sender}, status: #{active}
             # count: #{state.count}, size: #{state.n_size}")
             state = %{state | count: state.count + 1}
+            state =
             cond do
               active == false ->
                 state = %{state | to_delete: state.to_delete ++ [sender]}
               active == true ->
                 state
             end
-
+            state =
             if state.count == state.n_size do
               # IO.puts "recv all update_reply in #{inspect my_pid}, size neigh: #{state.n_size}"
                 num_msg = state.n_size
@@ -144,8 +153,10 @@ def run(state) do
                 state = %{state | count: 0}
                 send(state.master_id,{:update_complete})
                 state
+            else
+              state
             end
-            state
+
 
     end
     run (state)

@@ -4,7 +4,7 @@
 iex
 c "GlobalSync.ex"
 c "MIS.ex"
-GlobalSync.start_nodes(16384)
+GlobalSync.start_nodes(8192)
 #GlobalSync.set_values_test
 GlobalSync.start_mis
 -----------
