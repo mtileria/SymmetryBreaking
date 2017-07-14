@@ -37,13 +37,13 @@ end
       send(synchronizer,{:sync_send,msg})
     end
 
-  def enable_sync_recv(pid, round, messages,name) do
-    IO.puts "Syncronuous receive in #{name}
-     \n #{inspect messages} "
-  end
+  # def enable_sync_recv(pid, round, messages,name) do
+  #   IO.puts "Syncronuous receive in #{name}
+  #    \n #{inspect messages} "
+  # end
 
   def is_value_minimun(buffer,value) do
-    Enum.all?(buffer,fn {x,y} ->
+    Enum.all?(buffer,fn {_,y} ->
     value < y end)
   end
 
@@ -61,30 +61,32 @@ end
         state = %{state | destinations: map_pids}
 
 
-      {:find_mis,x} ->  # x = :continue || :initial
+      {:find_mis,x,round} ->  # x = :continue || :initial
       state = %{state | step: :find_mis}
 
-        if x == :continue do
-          state = %{state | value: :rand.uniform()}
-        end
+      state =
+        if x == :continue, do: state = %{state | value: :rand.uniform()}, else: state
 
+        state =
         case Enum.count(state.destinations) > 0 do
           true ->
             sync_send(state.synchronizer_id,{:value,state.value})
             state
           false ->
+            IO.puts "This should never happen"
             state = %{state | active: false}
             state = %{state | mis: true}
-            send(state.master_id,{:complete,:real,state.mis,state.active,my_pid,0,state.round})
+            send(state.master_id,{:complete,:real,state.mis,state.active,my_pid,{0,0},round})
             state
         end
-        state
 
-        {:sync_recv,:value,round,buffer} ->
+
+        {:sync_recv,:value,_,buffer} ->
           state = %{state | step: :recv_value}
 
-          is_min = Enum.all?(buffer,fn {x,y} -> state.value < y end)
+          is_min = Enum.all?(buffer,fn {_,y} -> state.value < y end)
           # IO.puts "sync_recv in #{state.name}, my_value_min = #{is_min}"
+          state =
           case is_min do
             true ->
               state = %{state | mis: true}
@@ -99,31 +101,26 @@ end
           if state.count_phase == Enum.count(state.destinations) do
             state = %{state | count_phase: 0}
             sync_send(state.synchronizer_id,{:mis_status,state.mis})
+            state
+          else
+            state
           end
-          state
 
         {:sync_recv,:mis_status,round,buffer} ->
           state = %{state | step: :recv_status}
-          neighbor_mis = Enum.any?(buffer,fn {x,mis} -> mis == true end)
-          if (neighbor_mis == true || state.mis == true)  do
+          neighbor_mis = Enum.any?(buffer,fn {_,mis} -> mis == true end)
+          if (state.mis == true || neighbor_mis == true)  do
             state = %{state | active: false}
             send(state.master_id,{:complete,:real,state.mis,state.active,
-              my_pid,network_size,state.round})
+              my_pid,{2,4*network_size},round})
+              ## NODE BECOME INACTIVE
               run_inactive(state)
-          end
-          send(state.master_id,{:complete,:real,state.mis,state.active,
-            my_pid,network_size,state.round})
-          state
-
-          {:status,origin,first_status} ->
-            if state.step != first_status do
-              send origin,{:reply,my_pid,state.step}
-            end
-            state
-
-            {:step} ->
-              IO.puts("In #{inspect my_pid}, step #{state.step}")
               state
+          else
+            send(state.master_id,{:complete,:real,state.mis,state.active,
+              my_pid,{2,4*network_size},round})
+              state
+          end
     end
     run (state)
   end
@@ -135,42 +132,32 @@ end
     state =
       receive do
 
-        {:find_mis,:continue} ->
+        {:find_mis,:continue,_} ->
           state = %{state | step: :find_mis}
           sync_send(state.synchronizer_id,{:value,1})
           state
 
-          {:sync_recv,:value,round,buffer} ->
+        {:sync_recv,:value,_,_} ->
             state = %{state | step: :recv_value}
             Enum.each(Map.keys(state.destinations), fn(x) -> send x,{:first_phase}end)
             state
 
-
-            {:first_phase} ->
-              state = %{state | count_phase: state.count_phase + 1}
-              if state.count_phase == Enum.count(state.destinations) do
-                state = %{state | count_phase: 0}
-                sync_send(state.synchronizer_id,
-                  {:mis_status,false})
-              end
+        {:first_phase} ->
+          state = %{state | count_phase: state.count_phase + 1}
+          state =
+          if state.count_phase == Enum.count(state.destinations) do
+            state = %{state | count_phase: 0}
+            sync_send(state.synchronizer_id,
+              {:mis_status,false})
               state
+          else
+            state
+          end
 
-          {:sync_recv,:mis_status,round,buffer} ->
+          {:sync_recv,:mis_status,round,_} ->
             state = %{state | step: :recv_status}
               send(state.master_id,{:complete,:dummy,state.mis,state.active,
-                my_pid,network_size,state.round})
-              state
-
-
-
-          {:status,origin,first_status} ->
-            if state.step != first_status do
-              send origin,{:reply,my_pid,state.step}
-            end
-            state
-
-            {:step} ->
-              IO.puts("In #{inspect my_pid}, step #{state.step}")
+                my_pid,{2,4*network_size},round})
               state
 
       end

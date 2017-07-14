@@ -10,8 +10,8 @@ ASyncronizer.sync_send(:p3,"Hi from p3")
 ****************************************
 iex
 c "Controller.ex"
-c "SyncMis.ex"
+c "SyncMIS.ex"
 c "Alpha.ex"
-Controller.start_nodes(128)
+Controller.start_nodes(1024)
 #Controller.set_values_test
 Controller.start_mis

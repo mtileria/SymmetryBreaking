@@ -36,15 +36,14 @@ end
     case :global.whereis_name(origin) do
       :undefined -> :undefined
       pid -> send(pid,{:sync_send,msg})
-      #pid -> send(origin,{:sync_send,{state.destination,msg}})
     end
   end
 
 
-  def enable_sync_recv(pid, round, messages,name) do
-    IO.puts "Syncronuous receive in #{name}
-     \n #{inspect messages} "
-  end
+  # def enable_sync_recv(pid, round, messages,name) do
+  #   IO.puts "Syncronuous receive in #{name}
+  #    \n #{inspect messages} "
+  # end
 
   def run(state) do
     my_pid = self()
@@ -67,6 +66,7 @@ end
         state
 
       {:async_msg,round,type,value,origin} ->
+        state =
         if !(Map.has_key?(state.buffer,round)) do
           state = %{ state | buffer: Map.put(state.buffer,round,[{type,value}])}
         else
@@ -84,19 +84,23 @@ end
         state
 
       {:safe, round, origin} ->
+        state =
         if !(Map.has_key?(state.safe,round)) do
           state = %{ state | safe: Map.put(state.safe,round,[origin])}
         else
           state = update_in(state,[:safe,round], fn x -> x ++ [origin] end)
         end
-        # IO.puts "In round #{round}: #{inspect Map.get(state.safe, round)},\n #{inspect Map.get(state.destinations,round)}"
+        state =
         if (length(Map.get(state.safe, round)) == length(state.destinations)) do
           {messages,tmp_buffer} = Map.pop(state.buffer,round)
           state = %{state | buffer: tmp_buffer }
           {type,_} = List.first(messages)
           send state.node,{:sync_recv, type, round, messages}
+          state
+        else
+          state
         end
-        state
+
 
     end
     run (state)

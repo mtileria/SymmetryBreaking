@@ -75,19 +75,17 @@ defmodule GlobalSync do
   end
 
 
-  def update_message_counter(map,count,round) do
+  defp update_message_counter(map,count,round) do
     {actual_x, actual_y} = count
-
     case Map.get(map,round) do
       nil ->
         {actual_x, actual_y}
       {x,y} ->
-        {actual_x, actual_y} = count
         {x + actual_x, y + actual_y}
+      end
   end
-end
 
-  def sum_messages (counter) do
+  defp sum_messages (counter) do
     msg = Enum.reduce(Map.values(counter),0, fn(x,acc) ->
       {m,_} = x
       m + acc end)
@@ -163,8 +161,9 @@ def run_master(state) do
           case state.active_size == 0 do
             true ->
               {total_msg,total_overhead} = sum_messages (state.msg_counter)
-              IO.puts("MIS complete: MIS number nodes: #{length(state.mis)}, Number rounds #{inspect state.round}
-                , Number of messages #{total_msg} , extra msg: #{total_overhead}
+              IO.puts("\n**** MIS complete ******
+              MIS number nodes: #{length(state.mis)}, Rounds #{inspect state.round}
+                , Number of messages #{total_msg} , Sync overhead: #{total_overhead}
                  network size: #{length(state.processes)}")
               state
             false ->
@@ -188,7 +187,7 @@ def run_master(state) do
           else
             state
           end
-          
+
 
 
     end
