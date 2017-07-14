@@ -1,0 +1,9 @@
+## For Global Synchronizer
+
+:global.whereis_name("A0")
+iex
+c "GlobalSync.ex"
+c "g_mis.ex"
+GlobalSync.start_nodes(512)
+#GlobalSync.set_values_test #-> only for topology 0
+GlobalSync.start_mis

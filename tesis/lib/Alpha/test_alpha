@@ -1,0 +1,17 @@
+
+Alpha Synchronizer test
+iex
+c "Alpha.ex"
+ASyncronizer.create_processes([:p1,:p2,:p3])
+ASyncronizer.sync_send(:p1,"Hi from p1")
+ASyncronizer.sync_send(:p2,"Hi from p2")
+ASyncronizer.sync_send(:p3,"Hi from p3")
+
+****************************************
+iex
+c "Controller.ex"
+c "SyncMis.ex"
+c "Alpha.ex"
+Controller.start_nodes(128)
+#Controller.set_values_test
+Controller.start_mis

@@ -1,23 +1,3 @@
-## For Global Synchronizer
-
-:global.whereis_name("A0")
-iex
-c "GlobalSync.ex"
-c "MIS.ex"
-GlobalSync.start_nodes(8192)
-#GlobalSync.set_values_test
-GlobalSync.start_mis
------------
-
-iex
-MIS.start_nodes(32768)
-MIS.find_MIS
-
-
-#MIS.set_values_test
-
-########
-This is the test sequence
 
 
 iex
@@ -25,24 +5,3 @@ c "Master.ex"
 c "MIS.ex"
 MIS.start_nodes(X)  #-> x is the number of nodes
 MIS.find_MIS
-
-
-
-###por
-
-Alpha Synchronizer test
-iex
-c "Alpha.ex"
-ASyncronizer.create_processes([:p1,:p2,:p3])
-ASyncronizer.sync_send(:p1,"Hi from p1")
-ASyncronizer.sync_send(:p2,"Hi from p2")
-ASyncronizer.sync_send(:p3,"Hi from p3")
-
-****************************************
-iex
-c "Controller.ex"
-c "SyncMis.ex"
-c "Alpha.ex"
-Controller.start_nodes(16384)
-#Controller.set_values_test
-Controller.start_mis
