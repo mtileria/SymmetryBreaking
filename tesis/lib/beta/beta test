@@ -1,0 +1,6 @@
+c "Beta_master.ex"
+c "SyncMisBeta.ex"
+c "Beta.ex"
+BetaController.start_nodes(6)
+BetaController.spanning_tree
+BetaController.start_mis

@@ -60,6 +60,9 @@ end
         send(state.synchronizer_id,{:add_neighbors,Map.values(map_pids)})
         state = %{state | destinations: map_pids}
 
+      {:kill} ->
+        Process.exit(state.synchronizer_id,:kill)
+        Process.exit(my_pid,:kill)
 
       {:find_mis,x,round} ->  # x = :continue || :initial
       state = %{state | step: :find_mis}
@@ -131,6 +134,10 @@ end
 
     state =
       receive do
+
+        {:kill} ->
+          Process.exit(state.synchronizer_id,:kill)
+          Process.exit(my_pid,:kill)
 
         {:find_mis,:continue,_} ->
           state = %{state | step: :find_mis}

@@ -12,6 +12,8 @@ iex
 c "Controller.ex"
 c "SyncMIS.ex"
 c "Alpha.ex"
-Controller.start_nodes(1024)
+Controller.start_nodes(128)
 #Controller.set_values_test
 Controller.start_mis
+#####
+Controller.finish_simulation

@@ -19,7 +19,7 @@ defmodule Controller do
     }
   end
 
-def start_nodes (n) do
+def start_nodes(n) do
   # create master process
   master_id = spawn(Controller,:run_master,[init_master(:master)])
   case :global.register_name(:master,master_id) do
@@ -53,8 +53,12 @@ defp add_edges_topology(n) do
     send(id_origin,{:add_neighborhs, map_destinations}) end)
   end
 
+  def finish_simulation() do
+      send(process_by_name(:master),{:kill_all})
+  end
+
   defp update_message_counter(map,count,round) do
-  {actual_x, actual_y} = count
+      {actual_x, actual_y} = count
   case Map.get(map,round) do
     nil ->
       {actual_x, actual_y}
@@ -73,7 +77,7 @@ end
       n + acc end)
 
       {msg,overhead}
-end
+    end
 
 defp process_by_name (name) do
   case :global.whereis_name(name) do
@@ -114,12 +118,19 @@ def run_master(state) do
           send(pid,{:find_mis,:initial,0})end)
         state
 
+      {:kill_all} ->
+        Enum.each(state.processes, fn(x) -> send x,{:kill} end)
+        Process.exit(self, :exit)
+
       {:complete,type,mis,active,sender,msg_count,round} ->
-        #  IO.puts "In master recv complete from #{inspect sender}, active: #{active}
-        #   count: #{state.count}"
+          # IO.puts "In master recv complete from #{inspect sender}, msg: #{inspect msg_count}, round #{round}
+          #  #{inspect Map.get(state.msg_counter, round) }"
         state = %{state | count: state.count + 1}
+
         {num_msg,sync_overhead} = update_message_counter(state.msg_counter,msg_count,round)
-        state = put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})
+        state = put_in(state, [:msg_counter,round], {num_msg,sync_overhead})
+        #  IO.puts "Complete from #{inspect sender} , #{inspect msg_count}, #{inspect Map.get(state.msg_counter,state.round)}
+        #  , #{inspect {num_msg,sync_overhead}} add #{inspect put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})}}"
 
         state =
         cond  do
@@ -141,7 +152,7 @@ def run_master(state) do
         state =
         if state.count == length(state.processes) do
           state = %{state | total_inactives: state.total_inactives + state.inactives}
-          IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}, next actives: #{state.actives}, inactive: #{state.inactives}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
+          IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}, next actives: #{state.actives}, inactive: #{state.inactives}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,round)} ")
           state = %{state | count: 0}
           state = %{state | round: state.round + 1}
           state = %{state | new_mis: 0}
@@ -163,7 +174,7 @@ def run_master(state) do
         else
           state
         end
-        
+
 
     end
     run_master(state)

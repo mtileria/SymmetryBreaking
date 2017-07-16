@@ -113,6 +113,10 @@ defmodule GlobalSync do
     end
   end
 
+  def finish_simulation() do
+      send(process_by_name(:master),{:kill_all})
+  end
+
 def run_master(state) do
 
   state =
@@ -131,6 +135,10 @@ def run_master(state) do
         Enum.each(state.processes, fn(pid) ->
           send(pid,{:find_mis,:initial})end)
         state
+        
+      {:kill_all} ->
+        Enum.each(state.processes, fn(x) -> send x,{:kill} end)
+        Process.exit(self, :exit)
 
       {:complete,mis,active,sender,msg_count} ->
         # IO.puts ("Complete from #{inspect sender}, #{mis}, #{active}")

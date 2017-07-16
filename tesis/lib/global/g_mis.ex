@@ -38,6 +38,9 @@ def run(state) do
       state = %{state | neighbors: ids_destinations}
       state = %{state | n_size: length(ids_destinations)}
 
+    {:kill} ->
+      Process.exit(my_pid,:kill)
+
     {:find_mis,x} ->  # x = :continue || :initial
 
      state =
