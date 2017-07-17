@@ -58,17 +58,11 @@ defmodule BetaController do
     end
 
 	def spanning_tree() do
-		case :global.whereis_name(:master) do
-			:undefined -> :error
-			pid -> send pid,{:spanning_tree,:start}
-		end
+			send(process_by_name(:master),{:spanning_tree,:start})
 	end
 
 	def start_mis() do
-		case :global.whereis_name(:master) do
-			:undefined -> :error
-			pid -> send pid, {:search_mis,:start}
-		end
+ 		send(process_by_name(:master),{:search_mis,:start})
 	end
 
   defp process_by_name (name) do
@@ -77,6 +71,26 @@ defmodule BetaController do
       pid -> pid
     end
   end
+
+	defp update_message_counter(map,count,round) do
+		{actual_x, actual_y} = count
+		case Map.get(map,round) do
+			nil ->
+				{actual_x, actual_y}
+			{x,y} ->
+				{x + actual_x, y + actual_y}
+		end
+	end
+
+defp sum_messages (counter) do
+	msg = Enum.reduce(Map.values(counter),0, fn(x,acc) ->
+	 {m,_} = x
+	 m + acc end)
+	overhead = Enum.reduce(Map.values(counter),0, fn(x,acc) ->
+		{_,n} = x
+		n + acc end)
+	{msg,overhead}
+	end
 
 
 
@@ -93,11 +107,16 @@ defmodule BetaController do
 		{:add_processes_list,p_ids} ->
 			state = %{state | processes: p_ids}
 
+		{:kill_all} ->
+			Enum.each(state.processes, fn(x) -> send x,{:kill} end)
+			Process.exit(self, :exit)
+
     {:spanning_tree,:start} ->
       send hd(state.processes),{:spanning_tree,:root}
       state
 
 		{:completed_node} ->
+			# IO.puts "rec complete"
       state = %{state | tree_replies: state.tree_replies + 1}
       if state.tree_replies == length(state.processes) do
         IO.puts("Spanning Tree complete")
@@ -106,10 +125,63 @@ defmodule BetaController do
 			  state
       end
 
-		{:search,:mis} ->
+		{:search_mis,:start} ->
 			Enum.each(state.processes, fn dest ->
-				send dest,{:search,:init}end)
+				send dest,{:find_mis,:init}end)
 			state
+
+	  {:complete,type,mis,active,sender,msg_count,round} ->
+			# IO.puts "In master recv complete from #{inspect sender}, msg: #{inspect msg_count}, round #{round}
+			#  #{inspect Map.get(state.msg_counter, round) }"
+			state = %{state | count: state.count + 1}
+
+			{num_msg,sync_overhead} = update_message_counter(state.msg_counter,msg_count,round)
+			state = put_in(state, [:msg_counter,round], {num_msg,sync_overhead})
+			#  IO.puts "Complete from #{inspect sender} , #{inspect msg_count}, #{inspect Map.get(state.msg_counter,state.round)}
+			#  , #{inspect {num_msg,sync_overhead}} add #{inspect put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})}}"
+
+			state =
+			cond  do
+				type == :dummy ->
+					state
+				active == false && mis == true->  ## node is part of MIS
+					state = %{state | mis: state.mis ++ [sender]}
+					state = %{state | new_mis: state.new_mis + 1}
+					state = %{state | inactives: state.inactives + 1}
+
+				active  == false && mis == false -> ## node is neighbor of node in MIS
+					state = %{state | not_mis: state.not_mis + 1}
+					state = %{state | inactives: state.inactives + 1}
+
+				active == true && mis == false ->  ## node will continue in next round
+					state = %{state | actives: state.actives + 1}
+			end
+
+			state =
+			if state.count == length(state.processes) do
+				state = %{state | total_inactives: state.total_inactives + state.inactives}
+				IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}, next actives: #{state.actives}, inactive: #{state.inactives}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,round)} ")
+				state = %{state | count: 0}
+				state = %{state | round: state.round + 1}
+				state = %{state | new_mis: 0}
+				state = %{state | actives: 0}
+				state = %{state | inactives: 0}
+				case length(state.mis) + state.not_mis == length(state.processes) do
+						true ->
+							{total_msg,total_overhead} = sum_messages (state.msg_counter)
+							IO.puts("\n ****MIS complete*****
+							MIS number nodes: #{length(state.mis)},Rounds #{inspect state.round} ,
+							Number of messages: #{total_msg} , Sync overhead:#{total_overhead}
+							network size: #{length(state.processes)}")
+							state
+						false ->
+							Enum.each(state.processes, fn(pid) ->
+								send(pid,{:find_mis,:continue})end)
+								state
+				end
+			else
+				state
+			end
 
 		end
 		run_master(state)

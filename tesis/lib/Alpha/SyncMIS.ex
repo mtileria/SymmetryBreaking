@@ -6,13 +6,11 @@ defmodule SyncMIS do
     %{
       name: name,
       round: 0,
-      msg_count: 0,
       master_id: master,
       synchronizer_id: alpha,
       destinations: %{}, # Map: #{destination -> synchronizer}
       count: 0,
       active: true,
-      to_delete: [],
       value: :rand.uniform(),
       mis: false,
       reply: 0,

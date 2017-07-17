@@ -8,8 +8,13 @@ defmodule SyncMisBeta do
     neighbors: %{},
     st_replies: 0,
     root: false,
+    mis: false,
+    active: true,
     master_id: master,
     synchronizer_id: beta,
+    value: :rand.uniform(),
+    count: 0,
+    step: nil,
     }
   end
 
@@ -27,51 +32,6 @@ defmodule SyncMisBeta do
     send(synchronizer,{:sync_send,msg})
   end
 
-  def pre_run(state) do
-  my_pid = self
-
-    state = receive do
-
-  	{:add_neighbors, neighbors} ->
-  	  state = %{state | neighbors: neighbors}
-  	  state = %{state | st_replies: Enum.count(neighbors) - 1}
-
-  	{:spanning_tree,:root} ->
-      state = %{state | root: true}
-  	  state = %{state | st_replies: Enum.count(state.neighbors)}
-  	  Enum.each(Map.keys(state.neighbors), fn(dest) -> send dest,{:search,:rst,my_pid} end)
-  	  state
-
-  	{:search,:rst,origin} ->
-  	  if state.parent == nil do
-  		  state = %{state | parent: {origin,Map.get(state.neighbors,origin)}}
-  		  send origin,{:reply,:parent_of, my_pid}
-  	    Enum.each(Map.keys(state.neighbors)  -- [origin],
-          fn dest -> send dest,{:search,:rst,my_pid} end)
-        state
-  	  else
-  		  send origin, {:reply,:rejected, my_pid}
-        state
-  	  end
-
-
-  	{:reply, value, origin} ->
-      state =
-      if value == :parent_of, do:  state = %{state | childs:
-        Map.put(state.childs,origin,Map.get(state.neighbors,origin))}, else: state
-  	  state = %{state | st_replies: state.st_replies - 1}
-  	  if state.st_replies == 0 do
-  	    send state.synchronizer_id,{:topology,state.parent,Map.values(state.childs)}
-  	    send state.master_id,{:completed_node}
-  	    run(state)
-  	  else
-  	     state
-      end
-
-    end
-    pre_run(state)
-  end
-
   def run(state) do
 
     my_pid = self()
@@ -83,6 +43,7 @@ defmodule SyncMisBeta do
         Process.exit(my_pid,:kill)
 
       {:find_mis,x} ->  # x = :continue || :initial
+        IO.puts ("find mis in #{inspect self}")
         state = %{state | step: :find_mis}
         state =
           if x == :continue, do: state =
@@ -93,6 +54,7 @@ defmodule SyncMisBeta do
 
 
       {:sync_recv,:value,_,buffer} ->
+        IO.puts ("value sync_recv  in #{inspect self}")
         state = %{state | step: :recv_value}
         is_min = Enum.all?(buffer,fn {_,y} -> state.value < y end)
         state =
@@ -102,20 +64,11 @@ defmodule SyncMisBeta do
           false ->
             state
         end
-        Enum.each(Map.keys(state.neighbors), fn(x) -> send x,{:first_phase}end)
+        sync_send(state.synchronizer_id,{:mis_status,state.mis})
         state
 
-      {:first_phase} ->
-        state = %{state | count_phase: state.count_phase + 1}
-        if state.count_phase == Enum.count(state.neighbors) do
-          state = %{state | count_phase: 0}
-          sync_send(state.synchronizer_id,{:mis_status,state.mis})
-          state
-        else
-          state
-        end
-
       {:sync_recv,:mis_status,round,buffer} ->
+        IO.puts ("status sync_recv  in #{inspect self}")
         state = %{state | step: :recv_status}
         neighbor_mis = Enum.any?(buffer,fn {_,mis} -> mis == true end)
         if (state.mis == true || neighbor_mis == true)  do
@@ -152,29 +105,71 @@ defmodule SyncMisBeta do
 
         {:sync_recv,:value,_,_} ->
             state = %{state | step: :recv_value}
-            Enum.each(Map.keys(state.neighbors), fn(x) -> send x,{:first_phase}end)
-            state
-
-        {:first_phase} ->
-          state = %{state | count_phase: state.count_phase + 1}
-          state =
-          if state.count_phase == Enum.count(state.neighbors) do
-            state = %{state | count_phase: 0}
             sync_send(state.synchronizer_id,
               {:mis_status,false})
-              state
-          else
             state
-          end
 
-          {:sync_recv,:mis_status,round,_} ->
-            state = %{state | step: :recv_status}
-              send(state.master_id,{:complete,:dummy,state.mis,state.active,
-                my_pid,{2,4*network_size},round})
-              state
-
+        {:sync_recv,:mis_status,round,_} ->
+          state = %{state | step: :recv_status}
+          send(state.master_id,{:complete,:dummy,state.mis,state.active,
+            my_pid,{2,4*network_size},round})
+          state
       end
-   run_inactive(state)
+      run_inactive(state)
+    end
+
+  def pre_run(state) do
+    my_pid = self
+
+     state = receive do
+
+   	{:add_neighbors, neighbors} ->
+   	  state = %{state | neighbors: neighbors}
+      send(state.synchronizer_id,{:add_neighbors,Map.values(neighbors)})
+   	  state = %{state | st_replies: Enum.count(neighbors) - 1}
+
+   	{:spanning_tree,:root} ->
+      state = %{state | root: true}
+   	  state = %{state | st_replies: Enum.count(state.neighbors)}
+      send(state.synchronizer_id,{:set_root})
+   	  Enum.each(Map.keys(state.neighbors), fn(dest) -> send dest,{:search,:rst,my_pid} end)
+   	  state
+
+   	{:search,:rst,origin} ->
+   	  if state.parent == nil do
+   		  state = %{state | parent: {origin,Map.get(state.neighbors,origin)}}
+   		  send origin,{:reply,:parent_of, my_pid}
+        case Enum.count(state.neighbors) > 1 do
+          true ->
+            Enum.each(Map.keys(state.neighbors)  -- [origin],
+              fn dest -> send dest,{:search,:rst,my_pid} end)
+          false ->
+            send state.synchronizer_id,{:topology,state.parent,[]}
+            send state.master_id,{:completed_node}
+            run(state)
+        end
+        state
+   	  else
+   		  send origin, {:reply,:rejected, my_pid}
+        state
+   	  end
+
+
+   	{:reply, value, origin} ->
+      state = %{state | st_replies: state.st_replies - 1}
+       state =
+       if value == :parent_of, do:  state = %{state | childs:
+         Map.put(state.childs,origin,Map.get(state.neighbors,origin))}, else: state
+       if state.st_replies == 0 do
+   	     send state.synchronizer_id,{:topology,state.parent,Map.values(state.childs)}
+   	     send state.master_id,{:completed_node}
+   	     run(state)
+   	   else
+   	     state
+       end
+
+     end
+     pre_run(state)
    end
 
 end
