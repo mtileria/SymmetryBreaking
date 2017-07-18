@@ -1,0 +1,3 @@
+18/07
+
+complete implementation of Luby's algortihm with Beta Synchronizer. Refactor some code from Alpha and global simulation of Luby's algorithm

@@ -43,7 +43,7 @@ defmodule SyncMisBeta do
         Process.exit(my_pid,:kill)
 
       {:find_mis,x} ->  # x = :continue || :initial
-        IO.puts ("find mis in #{inspect self}")
+        # IO.puts ("find mis in #{inspect self}")
         state = %{state | step: :find_mis}
         state =
           if x == :continue, do: state =
@@ -54,7 +54,7 @@ defmodule SyncMisBeta do
 
 
       {:sync_recv,:value,_,buffer} ->
-        IO.puts ("value sync_recv  in #{inspect self}")
+        # IO.puts ("value sync_recv  in #{inspect self}")
         state = %{state | step: :recv_value}
         is_min = Enum.all?(buffer,fn {_,y} -> state.value < y end)
         state =
@@ -68,19 +68,19 @@ defmodule SyncMisBeta do
         state
 
       {:sync_recv,:mis_status,round,buffer} ->
-        IO.puts ("status sync_recv  in #{inspect self}")
+        # IO.puts ("status sync_recv  in #{inspect self}")
         state = %{state | step: :recv_status}
         neighbor_mis = Enum.any?(buffer,fn {_,mis} -> mis == true end)
         if (state.mis == true || neighbor_mis == true)  do
           state = %{state | active: false}
           send(state.master_id,{:complete,:real,state.mis,state.active,
-            my_pid,{2,4*network_size},round})
+            my_pid,{2,2*network_size+1+Enum.count(state.childs)},round})
             ## NODE BECOME INACTIVE
             run_inactive(state)
             state
         else
           send(state.master_id,{:complete,:real,state.mis,state.active,
-            my_pid,{2,4*network_size},round})
+            my_pid,{2,2*network_size+1+Enum.count(state.childs)},round})
             state
         end
     end
@@ -98,21 +98,24 @@ defmodule SyncMisBeta do
           Process.exit(state.synchronizer_id,:kill)
           Process.exit(my_pid,:kill)
 
-        {:find_mis,:continue,_} ->
+        {:find_mis,:continue} ->
+          # IO.puts "dummy find"
           state = %{state | step: :find_mis}
           sync_send(state.synchronizer_id,{:value,1})
           state
 
         {:sync_recv,:value,_,_} ->
-            state = %{state | step: :recv_value}
-            sync_send(state.synchronizer_id,
-              {:mis_status,false})
-            state
+          # IO.puts "dummy rcv VALUE "
+          state = %{state | step: :recv_value}
+          sync_send(state.synchronizer_id,
+            {:mis_status,false})
+          state
 
         {:sync_recv,:mis_status,round,_} ->
+          # IO.puts "dummy rcv STATUS"
           state = %{state | step: :recv_status}
           send(state.master_id,{:complete,:dummy,state.mis,state.active,
-            my_pid,{2,4*network_size},round})
+            my_pid,{2,2*network_size+1+Enum.count(state.childs)},round})
           state
       end
       run_inactive(state)

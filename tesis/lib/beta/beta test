@@ -1,7 +1,7 @@
 c "Beta_master.ex"
 c "SyncMisBeta.ex"
 c "Beta.ex"
-BetaController.start_nodes(4)
+BetaController.start_nodes(512)
 BetaController.spanning_tree
 BetaController.start_mis
 

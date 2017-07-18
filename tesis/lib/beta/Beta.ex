@@ -108,20 +108,25 @@ end
         end
 
         if (length(Map.get(state.safe, round)) == length(state.childs)) do
-          IO.puts "Safe for every child in the Tree #{inspect self}"
+          # IO.puts "Safe for every all childs #{inspect self}"
+          state =
           case state.root do
             true ->
-              Enum.each(state.childs, fn(x) -> send x,{:go,round} end)
               {messages,tmp_buffer} = Map.pop(state.buffer,round)
               state = %{state | buffer: tmp_buffer }
               {type,_} = List.first(messages)
               send state.node,{:sync_recv, type, round, messages}
+              Enum.each(state.childs, fn(x) -> send x,{:go,round} end)
+              state
             false ->
               send(state.parent,{:safe,round,my_pid})
+              state
           end
-        end
         state
-
+      else
+        state
+      end
+      
 
         {:go,round} ->
           # IO.puts ("In #{inspect my_pid} GO")

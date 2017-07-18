@@ -62,24 +62,13 @@ end
         Process.exit(state.synchronizer_id,:kill)
         Process.exit(my_pid,:kill)
 
-      {:find_mis,x,round} ->  # x = :continue || :initial
+      {:find_mis,x,_} ->  # x = :continue || :initial
       state = %{state | step: :find_mis}
-
       state =
         if x == :continue, do: state = %{state | value: :rand.uniform()}, else: state
+        sync_send(state.synchronizer_id,{:value,state.value})
+        state
 
-        state =
-        case Enum.count(state.destinations) > 0 do
-          true ->
-            sync_send(state.synchronizer_id,{:value,state.value})
-            state
-          false ->
-            IO.puts "This should never happen"
-            state = %{state | active: false}
-            state = %{state | mis: true}
-            send(state.master_id,{:complete,:real,state.mis,state.active,my_pid,{0,0},round})
-            state
-        end
 
 
         {:sync_recv,:value,_,buffer} ->
@@ -113,13 +102,13 @@ end
           if (state.mis == true || neighbor_mis == true)  do
             state = %{state | active: false}
             send(state.master_id,{:complete,:real,state.mis,state.active,
-              my_pid,{2,4*network_size},round})
+              my_pid,{2,3*network_size},round})
               ## NODE BECOME INACTIVE
               run_inactive(state)
               state
           else
             send(state.master_id,{:complete,:real,state.mis,state.active,
-              my_pid,{2,4*network_size},round})
+              my_pid,{2,2*3*network_size},round})
               state
           end
     end
@@ -162,7 +151,7 @@ end
           {:sync_recv,:mis_status,round,_} ->
             state = %{state | step: :recv_status}
               send(state.master_id,{:complete,:dummy,state.mis,state.active,
-                my_pid,{2,4*network_size},round})
+                my_pid,{2,2*3*network_size},round})
               state
 
       end
