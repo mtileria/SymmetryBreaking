@@ -1,0 +1,131 @@
+---
+title: "graph"
+author: "Julian Caceres - 100859759"
+date: "7/20/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# KEY PACKAGES
+# Install those now if you do not have the latest versions. 
+# (please do NOT load them yet!)
+
+
+# OPTIONAL PACKAGES
+# Install those if you  would like to run through all of the
+# examples below (those are not critical and can be skipped).
+
+install.packages("RColorBrewer")
+install.packages("extrafont")
+install.packages("png")
+install.packages("networkD3")
+install.packages("animation")
+install.packages("maps")
+install.packages("geosphere")
+ 
+
+# --DATASET 1: edgelist--
+```{r addnodes}
+nodes <- read.csv("../nodes.csv", header=T, as.is=T)
+links <- read.csv("../edges.csv", header=T, as.is=T)
+```
+```{r examine}
+# Examine the data:
+head(nodes)
+head(links)
+
+nrow(nodes); length(unique(nodes$id))
+nrow(links); nrow(unique(links[,c("from", "to")]))
+nrow(unique(links[,c("from", "to", "type")]))
+```
+
+# 3. Plotting networks with igraph 
+
+  
+#  ------->> Turning networks into igraph objects  --------
+```{r mainlib}
+library("igraph")
+```
+
+# DATASET 1 
+```{r maindataset}
+
+# Converting the data to an igraph object:
+# The graph_from_data_frame() function takes two data frames: 'd' and 'vertices'.
+# 'd' describes the edges of the network - it should start with two columns 
+# containing the source and target node IDs for each network tie.
+# 'vertices' should start with a column of node IDs.
+# Any additional columns in either data frame are interpreted as attributes.
+net <- graph_from_data_frame(d=links, vertices=nodes, directed=T) 
+
+# Examine the resulting object:
+class(net)
+net 
+
+```
+# We can access the nodes, edges, and their attributes:
+```{r accessnodes}
+E(net)
+V(net)
+E(net)$type
+V(net)$media
+# Removing loops from the graph:
+net <- simplify(net, remove.multiple = F, remove.loops = T) 
+
+
+```
+
+# Plotting parameters in igraph
+
+```{r helpplot}
+# Plotting with igraph: node options (starting with 'vertex.') and edge options
+# (starting with 'edge.'). A list of options is included in your handout.
+?igraph.plotting
+```
+
+```{r plot1}
+# We can set the node & edge options in two ways - one is to specify
+# them in the plot() function, as we are doing below.
+
+# Plot with curved edges (edge.curved=.1) and reduce arrow size:
+# Note that using curved edges will allow you to see multiple links
+# between two nodes (e.g. links going in either direction, or multiplex links)
+plot(net, edge.arrow.size=.4, edge.curved=.1)
+```
+```{r name}
+# Set node color to orange and the border color to hex #555555
+# Replace the vertex label with the node names stored in "media"
+plot(net, edge.arrow.size=.4, edge.curved=0,
+     vertex.color="orange", vertex.frame.color="#555555",
+     vertex.label=V(net)$media, vertex.label.color="black",
+     vertex.label.cex=.7) 
+```
+# The second way to set attributes is to add them to the igraph object.
+
+# Generate colors based on media type:
+```{r colorcommunity}
+# Generate colors based on media type:
+colrs <- c("gray50", "tomato", "gold","blue","green")
+V(net)$color <- colrs[V(net)$media.type]
+
+# Compute node degrees (#links) and use that to set node size:
+deg <- degree(net, mode="all")
+V(net)$size <- deg*3
+# We could also use the audience size value:
+V(net)$size <- V(net)$audience.size*0.6
+
+# The labels are currently node IDs.
+# Setting them to NA will render no labels:
+V(net)$label <- NA
+
+# Set edge width based on weight:
+E(net)$width <- E(net)$weight/6
+
+#change arrow size and edge color:
+E(net)$arrow.size <- .2
+E(net)$edge.color <- "gray80"
+E(net)$width <- 1+E(net)$weight/12
+plot(net) 
+```

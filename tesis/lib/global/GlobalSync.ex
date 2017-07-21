@@ -54,6 +54,8 @@ defmodule GlobalSync do
   defp add_edges_topology(n) do
     # load edges from file and send list neighbors to every process
     stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
+    #  stream = File.stream!("/home/marcos/rhul/generator/topologies/" <> Integer.to_string(n) <> "edges.txt")
+
     Enum.each(stream, fn(x) ->
       nodes = String.split(x)
       origin = List.first(nodes)
@@ -135,13 +137,13 @@ def run_master(state) do
         Enum.each(state.processes, fn(pid) ->
           send(pid,{:find_mis,:initial})end)
         state
-        
+
       {:kill_all} ->
         Enum.each(state.processes, fn(x) -> send x,{:kill} end)
         Process.exit(self, :exit)
 
       {:complete,mis,active,sender,msg_count} ->
-        # IO.puts ("Complete from #{inspect sender}, #{mis}, #{active}")
+        # IO.puts ("Complete from #{inspect sender}, #{mis}, #{active}, count:#{state.count + 1}, size: #{state.active_size}")
         state = %{state | count: state.count + 1}
         {num_msg,sync_overhead} = update_message_counter(state.msg_counter,msg_count,state.round)
         state = put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})
