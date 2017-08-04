@@ -99,6 +99,12 @@ defmodule GlobalSync do
         {msg,overhead}
   end
 
+  def save_results(n,data) do
+    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/global/" <> Integer.to_string(n) <> "_results.log",[:append])
+    IO.binwrite(file,data)
+    File.close file
+  end
+
 
   def set_values_test() do  ## for dummy example 0nodes file
     values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
@@ -175,7 +181,11 @@ def run_master(state) do
               MIS number nodes: #{length(state.mis)}, Rounds #{inspect state.round}
                 , Number of messages #{total_msg} , Sync overhead: #{total_overhead}
                  network size: #{length(state.processes)}")
+                 save_results(length(state.processes),"#{length(state.mis)} #{inspect state.round} #{total_msg} #{total_overhead} #{length(state.processes)} \n")
+                #  save_results([length(state.mis),state.round,total_msg,total_overhead,length(state.processes)])
+
               state
+
             false ->
               Enum.each(state.actives, fn(pid) ->
                 send(pid,{:update_topology})end)
@@ -197,8 +207,6 @@ def run_master(state) do
           else
             state
           end
-
-
 
     end
     run_master(state)

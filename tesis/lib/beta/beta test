@@ -1,9 +1,14 @@
+*****************************
+## To compile the Modules ##
+iex
 c "Beta_master.ex"
 c "SyncMisBeta.ex"
 c "Beta.ex"
-BetaController.start_nodes(512)
+
+***************************
+## To execute the simulation ##
+BetaController.start_nodes(8192)
 BetaController.spanning_tree
 BetaController.start_mis
-
-##
 BetaController.finish_simulation
+##

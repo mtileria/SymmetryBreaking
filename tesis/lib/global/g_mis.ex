@@ -19,6 +19,7 @@ defmodule MIS do
     master_id: master,
     mis: false,
     msg_count: 0,
+    st_replies: 0,
   }
 end
 
@@ -159,7 +160,6 @@ def run(state) do
             else
               state
             end
-
 
     end
     run (state)

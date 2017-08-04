@@ -79,6 +79,12 @@ end
       {msg,overhead}
     end
 
+  def save_results(n,data) do
+    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/alpha/" <> Integer.to_string(n) <> "_results.log",[:append])
+    IO.binwrite(file,data)
+    File.close file
+  end
+
 defp process_by_name (name) do
   case :global.whereis_name(name) do
     :undefined -> :undefined
@@ -165,6 +171,7 @@ def run_master(state) do
                 MIS number nodes: #{length(state.mis)},Rounds #{inspect state.round} ,
                 Number of messages: #{total_msg} , Sync overhead:#{total_overhead}
                 network size: #{length(state.processes)}")
+                save_results(length(state.processes),"#{length(state.mis)} #{inspect state.round} #{total_msg} #{total_overhead} #{length(state.processes)} \n")
                 state
               false ->
                 Enum.each(state.processes, fn(pid) ->

@@ -1,9 +1,22 @@
 ## For Global Synchronizer
 #GlobalSync.set_values_test #-> only for topology 0
 
-:global.whereis_name("A0")
+**************************
+## To compile the Modules ##
+
 iex
 c "GlobalSync.ex"
 c "g_mis.ex"
-GlobalSync.start_nodes(512)
+
+
+**************************
+## To execute the Simulation ##
+## output in n_results.log        ##
+
+## Esto no funcaut
+for _ <- 1..10 do
+GlobalSync.start_nodes(64)
 GlobalSync.start_mis
+GlobalSync.finish_simulation
+end
+#asd
