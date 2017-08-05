@@ -15,8 +15,8 @@ c "g_mis.ex"
 
 ## Esto no funcaut
 for _ <- 1..10 do
-GlobalSync.start_nodes(64)
+GlobalSync.start_nodes(32768)
 GlobalSync.start_mis
 GlobalSync.finish_simulation
-end
 #asd
+#

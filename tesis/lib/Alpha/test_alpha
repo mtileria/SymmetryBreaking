@@ -17,6 +17,6 @@ c "Alpha.ex"
 ****************************************
 ## To execute the simulation ###
 
-Controller.start_nodes(64)
+Controller.start_nodes(32768)
 Controller.start_mis
 Controller.finish_simulation

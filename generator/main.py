@@ -11,8 +11,8 @@ for i in range(num_vertices):
 	community_labels.insert(i,randint(0, num_communities-1))  # community label assigned to each vertices
 print 'num nodes: ' + str(num_vertices)
 print 'Community Labels: ' + str(community_labels)
-p1 =  5*math.log1p(num_vertices)/num_vertices # 0.32   probability of diagonal i == j
-p2 = 3.2/num_vertices   #1.2*math.log1p(num_vertices)/num_vertices	 probability of i <> j
+p1 =  7*math.log1p(num_vertices)/num_vertices # 0.32   probability of diagonal i == j
+p2 = 6/num_vertices   #1.2*math.log1p(num_vertices)/num_vertices	 probability of i <> j
 p_matrix = [[0 for j in range(num_communities)] for i in range(num_communities)]
 
 for i in range(num_communities):

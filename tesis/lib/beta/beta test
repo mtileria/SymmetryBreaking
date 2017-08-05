@@ -7,7 +7,7 @@ c "Beta.ex"
 
 ***************************
 ## To execute the simulation ##
-BetaController.start_nodes(8192)
+BetaController.start_nodes(32768)
 BetaController.spanning_tree
 BetaController.start_mis
 BetaController.finish_simulation

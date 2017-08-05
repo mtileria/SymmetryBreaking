@@ -40,7 +40,8 @@ defmodule BetaController do
   defp add_edges_topology(n) do
     # load edges from file and send list neighbors to every process
     stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-    Enum.each(stream, fn(x) ->
+		#stream = File.stream!("/home/marcos/rhul/generator/topologies/" <> Integer.to_string(n) <> "edges.txt")
+		Enum.each(stream, fn(x) ->
       nodes = String.split(x)
       origin = List.first(nodes)
       nodes = List.delete_at(nodes, 0)
