@@ -11,8 +11,8 @@ for i in range(num_vertices):
 	community_labels.insert(i,randint(0, num_communities-1))  # community label assigned to each vertices
 print 'num nodes: ' + str(num_vertices)
 print 'Community Labels: ' + str(community_labels)
-p1 =  7*math.log1p(num_vertices)/num_vertices # 0.32   probability of diagonal i == j
-p2 = 6/num_vertices   #1.2*math.log1p(num_vertices)/num_vertices	 probability of i <> j
+p1 =  5*math.log1p(num_vertices)/num_vertices # 7 0.32   probability of diagonal i == j
+p2 =  1*math.log1p(num_vertices)/num_vertices    #/num_vertices	 probability of i <> j
 p_matrix = [[0 for j in range(num_communities)] for i in range(num_communities)]
 
 for i in range(num_communities):
@@ -28,7 +28,7 @@ model = SBM(num_vertices, num_communities, community_labels, p_matrix)
 print model.block_matrix
 
 
-with open('/home/marcos/rhul/generator/topologies/' + str(num_vertices) + 'edges.txt', 'wb') as text_file:
+with open('/home/marcos/rhul/generator/topologies/connected/' + str(num_vertices) + 'edges.txt', 'wb') as text_file:
 	#sw = csv.writer(csvfile, delimiter=' ',quotechar='|', quoting=csv.QUOTE_MINIMAL)
 	#sw.writerow(['from','to','weigth','type'])
 	for i in range(num_vertices):

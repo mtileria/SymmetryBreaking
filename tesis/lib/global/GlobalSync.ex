@@ -54,13 +54,13 @@ defmodule GlobalSync do
   defp add_edges_topology(n) do
     # load edges from file and send list neighbors to every process
     #stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-    stream = File.stream!("/home/marcos/rhul/generator/topologies/" <> Integer.to_string(n) <> "edges.txt")
+    stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
 
     Enum.each(stream, fn(x) ->
       nodes = String.split(x)
       origin = List.first(nodes)
       nodes = List.delete_at(nodes, 0)
-      if length(nodes) == 0, do: IO.puts(origin) 
+      if length(nodes) == 0, do: IO.puts(origin)
       id_origin = process_by_name(origin)
       ids_destination =
         for node <- nodes do
@@ -101,7 +101,7 @@ defmodule GlobalSync do
   end
 
   def save_results(n,data) do
-    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/global/" <> Integer.to_string(n) <> "_results.log",[:append])
+    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/connected/g_" <> Integer.to_string(n) <> "_results.log",[:append])
     IO.binwrite(file,data)
     File.close file
   end
@@ -163,8 +163,12 @@ def run_master(state) do
             state = %{state | new_mis: state.new_mis + 1}
           active == false && mis == false -> ## node is neighbor of node in MIS
             state = %{state | to_delete: state.to_delete + 1}
-          true ->  ## node active for next round
+          # true ->  ## node active for next round
+          active == true && mis == false ->
             state = %{state | actives: state.actives ++ [sender]}
+          active == true && mis == true ->
+            IO.puts "OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
+            state
         end
 
 

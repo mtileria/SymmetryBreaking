@@ -39,8 +39,8 @@ defmodule BetaController do
 
   defp add_edges_topology(n) do
     # load edges from file and send list neighbors to every process
-    stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-		#stream = File.stream!("/home/marcos/rhul/generator/topologies/" <> Integer.to_string(n) <> "edges.txt")
+    # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
+		stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
 		Enum.each(stream, fn(x) ->
       nodes = String.split(x)
       origin = List.first(nodes)
@@ -95,7 +95,7 @@ defp sum_messages (counter) do
 
 
 	def save_results(n,data) do
-    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/beta/" <> Integer.to_string(n) <> "_results.log",[:append])
+    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/connected/b_" <> Integer.to_string(n) <> "_results.log",[:append])
     IO.binwrite(file,data)
     File.close file
   end
@@ -122,10 +122,11 @@ defp sum_messages (counter) do
       state
 
 		{:completed_node} ->
-			# IO.puts "rec complete"
+			#  IO.puts "rec #{state.tree_replies + 1}"
       state = %{state | tree_replies: state.tree_replies + 1}
       if state.tree_replies == length(state.processes) do
         IO.puts("Spanning Tree complete")
+				start_mis()
         state
       else
 			  state
@@ -180,6 +181,7 @@ defp sum_messages (counter) do
 							Number of messages: #{total_msg} , Sync overhead:#{total_overhead}
 							network size: #{length(state.processes)}")
 							save_results(length(state.processes),"#{length(state.mis)} #{inspect state.round} #{total_msg} #{total_overhead} #{length(state.processes)} \n")
+							finish_simulation()
 							state
 						false ->
 							Enum.each(state.processes, fn(pid) ->
