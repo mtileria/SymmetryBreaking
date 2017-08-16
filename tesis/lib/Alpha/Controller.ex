@@ -10,11 +10,12 @@ defmodule Controller do
       count: 0,
       round: 0,
       not_mis: 0,
+      total_not_mis: 0,
       count_replies: 0,
       new_mis: 0,
       actives: 0,
       inactives: 0,
-      total_inactives: 0,
+      not_names: [],
       msg_counter: %{},
     }
   end
@@ -93,9 +94,24 @@ defp process_by_name (name) do
     pid -> pid
   end
 end
+def big_test() do
+  stream = File.stream!("/home/marcos/list.txt") |> Stream.map(&String.trim_trailing/1) |> Enum.to_list
+  split = String.split(List.first(stream))
+  list =
+  for value <- split do
+    String.to_float(value)
+  end
+  if length(list) == 8192 do
+    send(process_by_name(:master),{:test_values,list})
+  else
+    IO.puts "#{length(list)}"
+    :error
+  end
+end
 
 def set_values_test() do  ## for dummy example 0nodes file
-  values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
+  # values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
+  values = [0.12, 0.94, 0.03, 0.08, 0.94, 0.82, 0.54, 1.0, 0.62,0.26, 0.71, 0.57, 0.38, 0.5, 0.63, 0.65]
   case :global.whereis_name(:master) do
     :undefined -> :undefined
     pid -> send(pid,{:test_values, values})
@@ -130,7 +146,7 @@ def run_master(state) do
         Enum.each(state.processes, fn(x) -> send x,{:kill} end)
         Process.exit(self, :exit)
 
-      {:complete,type,mis,active,sender,msg_count,round} ->
+      {:complete,type,mis,active,sender,name,msg_count,round} ->
           # IO.puts "In master recv complete from #{inspect sender}, msg: #{inspect msg_count}, round #{round}
           #  #{inspect Map.get(state.msg_counter, round) }"
         state = %{state | count: state.count + 1}
@@ -152,6 +168,8 @@ def run_master(state) do
           active  == false && mis == false -> ## node is neighbor of node in MIS
             state = %{state | not_mis: state.not_mis + 1}
             state = %{state | inactives: state.inactives + 1}
+            state= %{state | not_names: state.not_names + [name]}
+
 
           active == true && mis == false ->  ## node will continue in next round
             state = %{state | actives: state.actives + 1}
@@ -159,14 +177,17 @@ def run_master(state) do
 
         state =
         if state.count == length(state.processes) do
-          state = %{state | total_inactives: state.total_inactives + state.inactives}
-          IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}, next actives: #{state.actives}, inactive: #{state.inactives}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,round)} ")
+          IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}: #{inspect state.mis}, next actives: #{state.actives}, inactive: #{state.inactives}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,round)} ")
+          # IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}: #{inspect state.mis}, next actives: #{length(state.actives)}, inactive: #{state.to_delete}, nodes remove not MIS: #{state.not_mis}: #{state.not_names}")#, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
+
+          state = %{state | total_not_mis: state.total_not_mis + state.not_mis}
+          state = %{state | not_mis: 0}
           state = %{state | count: 0}
           state = %{state | round: state.round + 1}
           state = %{state | new_mis: 0}
           state = %{state | actives: 0}
           state = %{state | inactives: 0}
-          case length(state.mis) + state.not_mis == length(state.processes) do
+          case length(state.mis) + state.total_not_mis == length(state.processes) do
               true ->
                 {total_msg,total_overhead} = sum_messages (state.msg_counter)
                 IO.puts("\n ****MIS complete*****

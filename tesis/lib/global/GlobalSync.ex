@@ -12,6 +12,8 @@ defmodule GlobalSync do
       count: 0,
       count_topology: 0,
       new_mis: 0,
+      not_mis: 0,
+      not_names: [],
       msg_counter: %{},
     }
   end
@@ -106,9 +108,26 @@ defmodule GlobalSync do
     File.close file
   end
 
+  def big_test() do
+    stream = File.stream!("/home/marcos/list.txt") |> Stream.map(&String.trim_trailing/1) |> Enum.to_list
+    split = String.split(List.first(stream))
+    list =
+    for value <- split do
+      String.to_float(value)
+    end
+    if length(list) == 8192 do
+      send(process_by_name(:master),{:test_values,list})
+    else
+      IO.puts "#{length(list)}"
+      :error
+    end
+  end
+
+
 
   def set_values_test() do  ## for dummy example 0nodes file
     values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
+    #values = [0.12, 0.94, 0.03, 0.08, 0.94, 0.82, 0.54, 1.0, 0.62,0.26, 0.71, 0.57, 0.38, 0.5, 0.63, 0.65]
     case :global.whereis_name(:master) do
       :undefined -> :undefined
       pid -> send(pid,{:test_values, values})
@@ -131,10 +150,11 @@ def run_master(state) do
   state =
     receive do
 
-      {:test_values, values} ->  ## for dummy example
+      {:test_values, values} ->  ## for dummy and not so dummy example
         tupleEnum = Enum.zip(state.processes, values)
         Enum.each(tupleEnum, fn {x,y} -> send(x,{:set_value,y})end)
         state
+
 
       {:add_processes_list,p_ids} ->
         state = %{state | processes: p_ids}
@@ -149,8 +169,8 @@ def run_master(state) do
         Enum.each(state.processes, fn(x) -> send x,{:kill} end)
         Process.exit(self, :exit)
 
-      {:complete,mis,active,sender,msg_count} ->
-        # IO.puts ("Complete from #{inspect sender}, #{mis}, #{active}, count:#{state.count + 1}, size: #{state.active_size}")
+      {:complete,mis,active,sender,name,msg_count} ->
+        # IO.puts ("Complete from #{name}, mis:#{mis}, active:#{active}")
         state = %{state | count: state.count + 1}
         {num_msg,sync_overhead} = update_message_counter(state.msg_counter,msg_count,state.round)
         state = put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})
@@ -158,27 +178,31 @@ def run_master(state) do
          state =
           cond  do
           active == false && mis == true ->  ## node is part of MIS
-            state = %{state | mis: state.mis ++ [sender]}
+            state = %{state | mis: state.mis ++ [name]}
             state = %{state | to_delete: state.to_delete + 1}
             state = %{state | new_mis: state.new_mis + 1}
           active == false && mis == false -> ## node is neighbor of node in MIS
             state = %{state | to_delete: state.to_delete + 1}
+            state = %{state | not_mis: state.not_mis + 1}
+            state= %{state | not_names: state.not_names ++ [name]}
           # true ->  ## node active for next round
           active == true && mis == false ->
             state = %{state | actives: state.actives ++ [sender]}
           active == true && mis == true ->
-            IO.puts "OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
+            IO.puts "Error fatal"
             state
         end
 
 
         if state.count == state.active_size do
-          IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}, next actives: #{length(state.actives)}, inactive: #{state.to_delete}, nodes remove not MIS: #{state.to_delete - state.new_mis}, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
+          IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}: , next actives: #{length(state.actives)}, inactive: #{state.to_delete}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
+          # IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}: #{inspect state.mis}, next actives: #{length(state.actives)}, inactive: #{state.to_delete}, \n nodes remove not MIS: #{state.not_mis}: #{inspect state.not_names}")#, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
           state = %{state | active_size: length(state.actives)}
           state = %{state | round: state.round + 1}
           state = %{state | count: 0}
           state = %{state | to_delete: 0}
           state = %{state | new_mis: 0}
+          state = %{state | not_mis: 0}
           case state.active_size == 0 do
             true ->
               {total_msg,total_overhead} = sum_messages (state.msg_counter)

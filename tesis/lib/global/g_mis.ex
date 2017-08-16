@@ -20,6 +20,8 @@ defmodule MIS do
     mis: false,
     msg_count: 0,
     st_replies: 0,
+    buffer: [],
+    member: [],
   }
 end
 
@@ -42,15 +44,20 @@ def run(state) do
     {:kill} ->
       Process.exit(my_pid,:kill)
 
-    {:find_mis,x} ->  # x = :continue || :initial
+    {:set_value,y} ->
+      state = %{state | value: y}
+      state
 
-     state =
-      if x == :continue do
-          state = %{state | value: :rand.uniform()}
-      else
-          state
-      end
-
+    {:find_mis,_} ->  # _ por x = :continue || :initial
+     #
+    #  state =
+    #   if x == :continue do
+    #       state = %{state | value: :rand.uniform()}
+    #   else
+    #       state
+    #   end
+      state = %{state | buffer: []}
+      state = %{state | member: []}
       state =
       case state.n_size > 0 do
         true ->
@@ -61,30 +68,28 @@ def run(state) do
           # IO.puts "In #{inspect my_pid}, I am alone, complete"
           state = %{state | active: false}
           state = %{state | mis: true}
-          send(state.master_id,{:complete,state.mis,state.active,my_pid,{0,0}})
+          send(state.master_id,{:complete,state.mis,state.active,my_pid,state.name,{0,0}})
           state
         end
 
 
-    {:value,value,sender,} ->
+    {:value,value,sender} ->
       #IO.puts ("In #{inspect my_pid}  value :#{inspect sender}")
         state = %{state | n_receive: state.n_receive + 1}
-        state = if (state.value < value),
-          do: state = %{state | count: state.count + 1}, else: state
+        state = %{state | buffer: state.buffer ++ [value]}
         state =
           if state.n_receive == state.n_size do
-            case state.count == state.n_size do
+            minimum = Enum.all?(state.buffer, fn(x) -> state.value < x  end)
+            # IO.puts ("In #{state.name} recv #{inspect state.buffer}, #{minimum}")
+            case minimum == true do
                true->  ## I am mis member
                 state = %{state | mis: true}
-                state = %{state | active: false}
-                state = %{state | count: 0}
                false -> ## All msg receive and not mis member
                  state = %{state | n_receive: 0}
-                 state = %{state | count: 0}
             end
-        else  ## Not receive all msg yet
-          state
-        end
+          else  ## Not receive all msg yet
+            state
+          end
         send(sender,{:ack})
         state
 
@@ -97,9 +102,11 @@ def run(state) do
           # IO.puts ("In #{inspect my_pid} recv all ack, size: #{state.n_size}")
           case state.mis == true do
             true ->
+              # IO.puts "I am mis_member #{state.name}, #{state.value}"
               notify_neighbors(state.neighbors,{:safe,:mis_member})
               state
             false ->   # not mis member but receive all ack
+              # IO.puts "I am NOT mis_member #{state.name}, #{state.value}"
               state = %{state | ack: 0}
               notify_neighbors(state.neighbors,{:safe,:not_mis_member})
               state
@@ -110,20 +117,28 @@ def run(state) do
 
 
         {:safe,neighbor_mis} ->
-        #  IO.puts ("In #{inspect my_pid} recv safe from : #{inspect origin}, and #{neighbor_mis}, #{state.safe_count + 1}")
-          state = %{state | safe_count: state.safe_count + 1}
-          state =
-          if neighbor_mis == :mis_member, do:
-              state = %{state | active: false}, else: state
-          state =
-          if state.safe_count == state.n_size do
-              state = %{state | safe_count: 0}
-              send(state.master_id,{:complete,
-                state.mis,state.active,my_pid,{4*state.n_size,3*state.n_size}})
+            state = %{state | safe_count: state.safe_count + 1}
+            state = %{state | member: state.member ++ [neighbor_mis]}
+
+            if state.safe_count == state.n_size do
+                state = %{state | safe_count: 0}
+                is_neigbour_mis = Enum.any?(state.member, fn(x) -> x == :mis_member end)
+                # IO.puts ("In #{state.name} recv #{inspect state.member},
+                # #{is_neigbour_mis} #{state.mis}, #{state.mis == true or is_neigbour_mis == true}")
+                if (state.mis == true or is_neigbour_mis == true)  do
+                    state = %{state | active: false}
+                    send(state.master_id,{:complete,state.mis,state.active,my_pid,
+                        state.name,{2*state.n_size,3*state.n_size + 2}})
+                    state
+                else
+                  send(state.master_id,{:complete,state.mis,state.active,my_pid,
+                    state.name,{2*state.n_size,3*state.n_size + 2}})
+                  state
+                end
+            else
               state
-          else
-            state
-          end
+            end
+
 
 
           {:update_topology} ->

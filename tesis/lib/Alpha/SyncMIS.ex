@@ -62,10 +62,12 @@ end
         Process.exit(state.synchronizer_id,:kill)
         Process.exit(my_pid,:kill)
 
-      {:find_mis,x,_} ->  # x = :continue || :initial
-      state = %{state | step: :find_mis}
-      state =
-        if x == :continue, do: state = %{state | value: :rand.uniform()}, else: state
+      # {:find_mis,x,_} ->  # x = :continue || :initial
+      {:find_mis,_,_} ->  # x = :continue || :initial
+        #
+        # state =
+        # if x == :continue, do: state =
+        #   %{state | value: :rand.uniform()}, else: state
         sync_send(state.synchronizer_id,{:value,state.value})
         state
 
@@ -73,14 +75,15 @@ end
 
         {:sync_recv,:value,_,buffer} ->
           state = %{state | step: :recv_value}
-
           is_min = Enum.all?(buffer,fn {_,y} -> state.value < y end)
           # IO.puts "sync_recv in #{state.name}, my_value_min = #{is_min}"
           state =
           case is_min do
             true ->
+              # IO.puts "I am mis_member #{state.name}, #{state.value}"
               state = %{state | mis: true}
             false ->
+              # IO.puts "I am NOT mis_member #{state.name}, #{state.value}"
               state
           end
           Enum.each(Map.keys(state.destinations), fn(x) -> send x,{:first_phase}end)
@@ -102,13 +105,13 @@ end
           if (state.mis == true || neighbor_mis == true)  do
             state = %{state | active: false}
             send(state.master_id,{:complete,:real,state.mis,state.active,
-              my_pid,{2,3*network_size},round})
+              my_pid,state.name,{2,3*network_size},round})
               ## NODE BECOME INACTIVE
               run_inactive(state)
               state
           else
             send(state.master_id,{:complete,:real,state.mis,state.active,
-              my_pid,{2,2*3*network_size},round})
+              my_pid,state.name,{2,2*3*network_size},round})
               state
           end
     end
@@ -151,7 +154,7 @@ end
           {:sync_recv,:mis_status,round,_} ->
             state = %{state | step: :recv_status}
               send(state.master_id,{:complete,:dummy,state.mis,state.active,
-                my_pid,{2,2*3*network_size},round})
+                my_pid,state.name,{2,2*3*network_size},round})
               state
 
       end

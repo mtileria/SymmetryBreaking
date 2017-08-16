@@ -1,5 +1,5 @@
 ## For Global Synchronizer
-#GlobalSync.set_values_test #-> only for topology 0
+# #-> only for topology 0
 
 **************************
 ## To compile the Modules ##
@@ -15,7 +15,8 @@ c "g_mis.ex"
 
 ## Esto no funcaut
 for _ <- 1..10 do
-GlobalSync.start_nodes(32768)
+GlobalSync.start_nodes(64)
+GlobalSync.set_values_test
 GlobalSync.start_mis
 GlobalSync.finish_simulation
 #asd
