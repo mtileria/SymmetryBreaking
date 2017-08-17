@@ -103,7 +103,7 @@ defmodule GlobalSync do
   end
 
   def save_results(n,data) do
-    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/connected/g_" <> Integer.to_string(n) <> "_results.log",[:append])
+    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/connected/g1_" <> Integer.to_string(n) <> "_results.txt",[:append])
     IO.binwrite(file,data)
     File.close file
   end

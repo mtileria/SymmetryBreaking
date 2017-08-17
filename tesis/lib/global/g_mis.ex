@@ -48,14 +48,14 @@ def run(state) do
       state = %{state | value: y}
       state
 
-    {:find_mis,_} ->  # _ por x = :continue || :initial
-     #
-    #  state =
-    #   if x == :continue do
-    #       state = %{state | value: :rand.uniform()}
-    #   else
-    #       state
-    #   end
+    {:find_mis,x} ->  # _ por x = :continue || :initial
+
+     state =
+      if x == :continue do
+          state = %{state | value: :rand.uniform()}
+      else
+          state
+      end
       state = %{state | buffer: []}
       state = %{state | member: []}
       state =

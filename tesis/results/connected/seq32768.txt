@@ -1,0 +1,52 @@
+iex(2)> GlobalSync.start_mis
+{:start_mis}
+
+ROUND 0 FINISH!!! New In MIS 4974: , next actives: 21027, inactive: 11741, nodes remove not MIS: 6767, msg: {954308, 1496998}
+ROUND 1 FINISH!!! New In MIS 3933: , next actives: 11133, inactive: 9894, nodes remove not MIS: 5961, msg: {395260, 634940}
+ROUND 2 FINISH!!! New In MIS 2937: , next actives: 4611, inactive: 6522, nodes remove not MIS: 3585, msg: {111248, 189006}
+ROUND 3 FINISH!!! New In MIS 1800: , next actives: 2174, inactive: 2437, nodes remove not MIS: 637, msg: {19104, 36702}
+ROUND 4 FINISH!!! New In MIS 983: , next actives: 859, inactive: 1315, nodes remove not MIS: 332, msg: {5936, 12370}
+ROUND 5 FINISH!!! New In MIS 443: , next actives: 255, inactive: 604, nodes remove not MIS: 161, msg: {1760, 3924}
+ROUND 6 FINISH!!! New In MIS 154: , next actives: 22, inactive: 233, nodes remove not MIS: 79, msg: {444, 1022}
+ROUND 7 FINISH!!! New In MIS 17: , next actives: 0, inactive: 22, nodes remove not MIS: 5, msg: {20, 50}
+
+**** MIS complete ******
+              MIS number nodes: 15241, Rounds 8
+                , Number of messages 1488080 , Sync overhead: 2375012
+                 network size: 32768
+
+iex(2)> GlobalSync.start_mis
+{:start_mis}
+
+ ROUND 0 FINISH!!! New In MIS 4945: , next actives: 11371, inactive: 21397, nodes remove not MIS: 16452, msg: {954308, 1496998}
+ ROUND 1 FINISH!!! New In MIS 2807: , next actives: 5270, inactive: 6101, nodes remove not MIS: 3294, msg: {115444, 195774}
+ ROUND 2 FINISH!!! New In MIS 1974: , next actives: 1652, inactive: 3618, nodes remove not MIS: 1644, msg: {26508, 49430}
+ ROUND 3 FINISH!!! New In MIS 926: , next actives: 438, inactive: 1214, nodes remove not MIS: 288, msg: {3444, 7404}
+ ROUND 4 FINISH!!! New In MIS 279: , next actives: 49, inactive: 389, nodes remove not MIS: 110, msg: {700, 1616}
+ ROUND 5 FINISH!!! New In MIS 37: , next actives: 1, inactive: 48, nodes remove not MIS: 11, msg: {52, 128}
+ ROUND 6 FINISH!!! New In MIS 1: , next actives: 0, inactive: 1, nodes remove not MIS: 0, msg: {0, 0}
+
+ **** MIS complete ******
+               MIS number nodes: 10969, Rounds 7
+                 , Number of messages 1100456 , Sync overhead: 1751350
+                  network size: 32768
+ iex(3)> GlobalSync.finish_simulation
+
+
+ iex(8)> GlobalSync.start_mis
+ {:start_mis}
+
+ ROUND 0 FINISH!!! New In MIS 5206: , next actives: 21058, inactive: 11710, nodes remove not MIS: 6504, msg: {954308, 1496998}
+ ROUND 1 FINISH!!! New In MIS 4092: , next actives: 11219, inactive: 9839, nodes remove not MIS: 5747, msg: {396152, 636342}
+ ROUND 2 FINISH!!! New In MIS 2851: , next actives: 4752, inactive: 6467, nodes remove not MIS: 3616, msg: {113424, 192440}
+ ROUND 3 FINISH!!! New In MIS 1714: , next actives: 2452, inactive: 2300, nodes remove not MIS: 586, msg: {21080, 40068}
+ ROUND 4 FINISH!!! New In MIS 1027: , next actives: 1200, inactive: 1252, nodes remove not MIS: 225, msg: {7408, 15100}
+ ROUND 5 FINISH!!! New In MIS 589: , next actives: 381, inactive: 819, nodes remove not MIS: 230, msg: {3036, 6490}
+ ROUND 6 FINISH!!! New In MIS 240: , next actives: 33, inactive: 348, nodes remove not MIS: 108, msg: {676, 1522}
+ ROUND 7 FINISH!!! New In MIS 27: , next actives: 0, inactive: 33, nodes remove not MIS: 6, msg: {24, 60}
+
+ **** MIS complete ******
+               MIS number nodes: 15746, Rounds 8
+                 , Number of messages 1496108 , Sync overhead: 2389020
+                  network size: 32768
+ iex(9)> GlobalSync.finish_simulation

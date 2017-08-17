@@ -12,12 +12,13 @@ c "g_mis.ex"
 **************************
 ## To execute the Simulation ##
 ## output in n_results.log        ##
+GlobalSync.set_values_test
+## E
 
-## Esto no funcaut
 for _ <- 1..10 do
 GlobalSync.start_nodes(64)
-GlobalSync.set_values_test
 GlobalSync.start_mis
 GlobalSync.finish_simulation
+
 #asd
 #
