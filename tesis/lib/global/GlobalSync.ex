@@ -15,6 +15,8 @@ defmodule GlobalSync do
       not_mis: 0,
       not_names: [],
       msg_counter: %{},
+      topology: %{},
+      edges: 0,
     }
   end
   @doc """
@@ -107,6 +109,32 @@ defmodule GlobalSync do
     IO.binwrite(file,data)
     File.close file
   end
+
+  def save_topology(data,round) do
+    {:ok, file} = File.open "/home/marcos/rhul/output/graph" <> round <> ".txt", [:write]
+    Enum.each(data, fn {x,y} ->
+        IO.binwrite(file, x <> ": " <> Enum.join(y," ") <> "\n")
+      end)
+      File.close file
+  end
+
+  def save_topology_formated(data,round,nodes) do
+    {:ok, file} = File.open "/home/marcos/rhul/output/round" <> round <> ".txt", [:write]
+    data = List.flatten(data)
+    edges = Integer.to_string(Enum.count(data))
+    IO.binwrite(file, nodes <> " " <> edges <> "\n")
+    Enum.each(data, fn {x,y} ->
+        IO.binwrite(file, x <> " " <> y <> "\n")
+      end)
+      File.close file
+  end
+
+  def format_topology(topology) do
+    for {key,value} <- topology, do:
+      for x <- value, do:
+        {key,x}
+  end
+
 
   def big_test() do
     stream = File.stream!("/home/marcos/list.txt") |> Stream.map(&String.trim_trailing/1) |> Enum.to_list
@@ -225,12 +253,21 @@ def run_master(state) do
         end
 
 
-        {:update_complete} ->
+        {:update_complete,name,neighbours} ->
           state = %{state | count_topology: state.count_topology + 1}
+          state =
+          if length(neighbours) > 0, do:
+             state = %{state | topology: Map.put(state.topology, name, neighbours)},
+            else: state
           if state.count_topology == state.active_size do
+            topology_edges = format_topology(state.topology)
+            r = Integer.to_string(state.round)
+            nodes = Integer.to_string(Enum.count(state.processes))
+            save_topology_formated(topology_edges,r,nodes)
             state = %{state | count_topology: 0}
             next_round = state.actives
             state = %{state | actives: []}
+            state = %{state | topology: %{}}
             Enum.each(next_round, fn(pid) -> send(pid,{:find_mis,:continue})end)
             state
           else

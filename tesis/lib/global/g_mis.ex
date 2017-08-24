@@ -20,8 +20,14 @@ defmodule MIS do
     mis: false,
     msg_count: 0,
     st_replies: 0,
+    bfs_request: 0,
     buffer: [],
     member: [],
+    distance: 10000,
+    parent: nil,
+    childs: [],
+    convercast: false,
+    to_add: []
   }
 end
 
@@ -148,10 +154,10 @@ def run(state) do
 
           {:status_request, sender} ->
             #IO.puts ("In #{inspect my_pid} recv update_netw from : #{inspect sender}")
-            send(sender,{:status_reply,my_pid,state.active})
+            send(sender,{:status_reply,my_pid,state.active,String.slice(state.name,1..10)})
             state
 
-          {:status_reply,sender,active} ->
+          {:status_reply,sender,active,name} ->
             # IO.puts ("In #{inspect my_pid} recv update_reply from : #{inspect sender}, status: #{active}
             # count: #{state.count}, size: #{state.n_size}")
             state = %{state | count: state.count + 1}
@@ -160,7 +166,7 @@ def run(state) do
               active == false ->
                 state = %{state | to_delete: state.to_delete ++ [sender]}
               active == true ->
-                state
+                state = %{state | to_add: state.to_add ++ [name]}
             end
             state =
             if state.count == state.n_size do
@@ -170,11 +176,49 @@ def run(state) do
                 state = %{state | to_delete: []}
                 state = %{state | n_size: length(state.neighbors)}
                 state = %{state | count: 0}
-                send(state.master_id,{:update_complete})
+                send(state.master_id,{:update_complete, String.slice(state.name,1..10),state.to_add})
+                state = %{state | to_add: []}
+
                 state
             else
               state
             end
+
+            # {:spanning_tree,:root} ->
+            #   state = %{state | root: true}
+            #   state = %{state | st_replies: Enum.count(state.neighbors)}
+            #   Enum.each(state.neighbors, fn(dest) ->
+            #     send dest,{:spanning_tree,my_pid} end)
+            #   state
+            #
+            # {:spanning_tree,origin} ->
+            #   if state.parent == nil do
+           # 		  state = %{state | parent: origin}
+           # 		  send origin,{:reply,:parent_of, my_pid}
+            #     case Enum.count(state.neighbors) > 1 do
+            #       true ->
+            #         Enum.each(state.neighbors -- [origin],
+            #           fn dest -> send dest,{:spanning_tree,my_pid} end)
+            #       false ->
+            #         state = %{state | convercast: true}
+            #         send state.parent,{:convercast,my_pid}
+            #     end
+            #     state
+           # 	  else
+           # 		  send origin, {:reply,:rejected, my_pid}
+            #     state
+           # 	  end
+            #
+            #   {:reply, value, origin} ->
+            #     state = %{state | st_replies: state.st_replies - 1}
+            #      state =
+            #      if value == :parent_of, do:  state = %{state | childs:
+            #        state.childs ++ [origin]}, else: state
+            #      if state.st_replies == 0 and state.convercast == true do
+            #        send(state.parent,{:convercast,})
+            #  	   else
+            #  	     state
+            #      end
 
     end
     run (state)
