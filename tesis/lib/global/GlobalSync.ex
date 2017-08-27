@@ -52,13 +52,47 @@ defmodule GlobalSync do
       end
     end
     send(master_id,{:add_processes_list,p_ids})
-    add_edges_topology(n)
+    # add_edges_topology(n)
+    save_edges_topology(n)
   end
+
+  def  save_edges_topology(n) do
+    # load edges from file and send list neighbors to every process
+    # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
+    stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
+    # Enum.each(stream, fn(x) ->
+    edges =
+    for x <- stream do
+      nodes = String.split(x)
+      origin = List.first(nodes)
+      nodes = List.delete_at(nodes, 0)
+      id_origin = String.slice(origin,1..10)
+        for node <- nodes do
+          {id_origin,String.slice(node,1..10)}
+        end
+    end
+      r = Integer.to_string(0)
+      IO.puts("#{inspect edges}")
+      nodes = Integer.to_string(32768)
+      save_topology_formated(edges,r,nodes)
+  end
+
+  def save_topology_formated(data,round,nodes) do
+    {:ok, file} = File.open "/home/marcos/rhul/output/round" <> round <> ".txt", [:write]
+     data = List.flatten(data)
+    edges = Integer.to_string(Enum.count(data))
+    IO.binwrite(file, nodes <> " " <> edges <> "\n")
+    Enum.each(data, fn {x,y} ->
+        IO.binwrite(file, x <> " " <> y <> "\n")
+      end)
+      File.close file
+  end
+
 
   defp add_edges_topology(n) do
     # load edges from file and send list neighbors to every process
-    stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-    #stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
+    # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
+    stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
 
     Enum.each(stream, fn(x) ->
       nodes = String.split(x)
@@ -118,16 +152,6 @@ defmodule GlobalSync do
       File.close file
   end
 
-  def save_topology_formated(data,round,nodes) do
-    {:ok, file} = File.open "/home/marcos/rhul/output/round" <> round <> ".txt", [:write]
-    data = List.flatten(data)
-    edges = Integer.to_string(Enum.count(data))
-    IO.binwrite(file, nodes <> " " <> edges <> "\n")
-    Enum.each(data, fn {x,y} ->
-        IO.binwrite(file, x <> " " <> y <> "\n")
-      end)
-      File.close file
-  end
 
   def format_topology(topology) do
     for {key,value} <- topology, do:

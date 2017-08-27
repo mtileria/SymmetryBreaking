@@ -128,4 +128,18 @@ E(net)$arrow.size <- .2
 E(net)$edge.color <- "gray80"
 E(net)$width <- 1+E(net)$weight/12
 plot(net) 
+
+
+
+
+
+########################3
+
+
+  
+  
+  
+
+
+
 ```
