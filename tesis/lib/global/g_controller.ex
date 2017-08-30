@@ -1,4 +1,4 @@
-defmodule GlobalSync do
+defmodule G_controller do
 
 
   def init_master(n) do
@@ -35,7 +35,7 @@ defmodule GlobalSync do
   """
   def start_nodes (n) do
     # create master process
-    master_id = spawn(GlobalSync,:run_master,[GlobalSync.init_master(n)])
+    master_id = spawn(G_controller,:run_master,[G_controller.init_master(n)])
     case :global.register_name(:master,master_id) do
       :yes -> master_id
       :no -> :error

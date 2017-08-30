@@ -1,5 +1,0 @@
-c "g_controller.ex"
-c "g_mis.ex"
-g_controller.start_nodes(32768)
-g_controller.start_mis
-g_controller.finish_simulation

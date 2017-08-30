@@ -1,0 +1,5 @@
+c "g_controller.ex"
+c "g_mis.ex"
+G_controller.start_nodes(1024)
+G_controller.start_mis
+G_controller.finish_simulation

@@ -1,7 +1,6 @@
-c "Alpha.ex"
-c "Sync_mis_alpha.ex"
-c "A_controller.ex"
-c "A_controller.ex"
+c "alpha.ex"
+c "sync_mis_alpha.ex"
+c "a_controller.ex"
 A_controller.start_nodes 1024
 A_controller.start_mis
 A_controller.finish_simulation
