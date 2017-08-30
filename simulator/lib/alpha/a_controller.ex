@@ -28,7 +28,7 @@ def start_nodes(n) do
   end
 
   # load topology from file and spawn processes
-  stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "nodes.txt")
+  stream = File.stream!("/home/marcos/rhul/simulator/files/" <> Integer.to_string(n) <> "nodes.txt")
   p_names = String.split(List.first(Enum.take(stream, 1)))
   p_ids = for name <- p_names do
      SyncMIS.start(name,master_id)
@@ -39,9 +39,10 @@ end
 
 defp add_edges_topology(n) do
   # load edges from file and send list neighbors to every process
-  stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-  # stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
-
+  # This is for Erdos-Renyi edges
+  # stream = File.stream!("/home/marcos/rhul/simulator/files/" <> Integer.to_string(n) <> "edges.txt")
+  ## This is for SBM edges
+  stream = File.stream!("/home/marcos/rhul/simulator/files/connected/" <> Integer.to_string(n) <> "edges.txt")
   Enum.each(stream, fn(x) ->
     nodes = String.split(x)
     origin = List.first(nodes)
@@ -82,7 +83,7 @@ end
     end
 
   def save_results(n,data) do
-    {:ok,file} = File.open("/home/marcos/rhul/tesis/results/connected/a_" <> Integer.to_string(n) <> "_results.log",[:append])
+    {:ok,file} = File.open("/home/marcos/rhul/simulator/results/connected/a_" <> Integer.to_string(n) <> "_results.log",[:append])
     IO.binwrite(file,data)
     File.close file
   end
