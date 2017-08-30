@@ -1,9 +1,0 @@
-{
-    "path" : "~/rhul/generator/graph",
-    "sortOrder" : [
-        {
-            "ascending" : true,
-            "columnIndex" : 2
-        }
-    ]
-}
