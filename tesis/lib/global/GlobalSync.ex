@@ -52,15 +52,33 @@ defmodule GlobalSync do
       end
     end
     send(master_id,{:add_processes_list,p_ids})
-    # add_edges_topology(n)
-    save_edges_topology(n)
+    add_edges_topology(n)
+    ## To save the initial topology uncomment next line
+    #save_edges_topology(n)
   end
+
+  defp add_edges_topology(n) do
+    # load edges from file and send list neighbors to every process
+    # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
+    stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
+
+    Enum.each(stream, fn(x) ->
+      nodes = String.split(x)
+      origin = List.first(nodes)
+      nodes = List.delete_at(nodes, 0)
+      id_origin = process_by_name(origin)
+      ids_destination =
+        for node <- nodes do
+          process_by_name(node)
+        end
+          send(id_origin,{:add_neighborhs, ids_destination})
+     end)
+    end
 
   def  save_edges_topology(n) do
     # load edges from file and send list neighbors to every process
     # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
     stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
-    # Enum.each(stream, fn(x) ->
     edges =
     for x <- stream do
       nodes = String.split(x)
@@ -87,26 +105,6 @@ defmodule GlobalSync do
       end)
       File.close file
   end
-
-
-  defp add_edges_topology(n) do
-    # load edges from file and send list neighbors to every process
-    # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-    stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
-
-    Enum.each(stream, fn(x) ->
-      nodes = String.split(x)
-      origin = List.first(nodes)
-      nodes = List.delete_at(nodes, 0)
-      if length(nodes) == 0, do: IO.puts(origin)
-      id_origin = process_by_name(origin)
-      ids_destination =
-        for node <- nodes do
-          process_by_name(node)
-        end
-          send(id_origin,{:add_neighborhs, ids_destination})
-     end)
-    end
 
   defp process_by_name (name) do
     case :global.whereis_name(name) do
@@ -159,27 +157,23 @@ defmodule GlobalSync do
         {key,x}
   end
 
-
+  ## This is just for testing purpose
   def big_test() do
-    stream = File.stream!("/home/marcos/list.txt") |> Stream.map(&String.trim_trailing/1) |> Enum.to_list
+    stream = File.stream!("/home/marcos/list.txt")
+      |> Stream.map(&String.trim_trailing/1) |> Enum.to_list
     split = String.split(List.first(stream))
     list =
     for value <- split do
       String.to_float(value)
     end
-    if length(list) == 8192 do
       send(process_by_name(:master),{:test_values,list})
-    else
-      IO.puts "#{length(list)}"
-      :error
-    end
   end
 
 
 
-  def set_values_test() do  ## for dummy example 0nodes file
+  def set_values_test() do
+    ## for dummy example 0nodes file
     values = [0.4,0.3,0.1,0.5,0.2,0.6,0.7,0.8]
-    #values = [0.12, 0.94, 0.03, 0.08, 0.94, 0.82, 0.54, 1.0, 0.62,0.26, 0.71, 0.57, 0.38, 0.5, 0.63, 0.65]
     case :global.whereis_name(:master) do
       :undefined -> :undefined
       pid -> send(pid,{:test_values, values})
@@ -202,11 +196,11 @@ def run_master(state) do
   state =
     receive do
 
-      {:test_values, values} ->  ## for dummy and not so dummy example
+      {:test_values, values} ->
+        ## for dummy example
         tupleEnum = Enum.zip(state.processes, values)
         Enum.each(tupleEnum, fn {x,y} -> send(x,{:set_value,y})end)
         state
-
 
       {:add_processes_list,p_ids} ->
         state = %{state | processes: p_ids}
@@ -222,7 +216,6 @@ def run_master(state) do
         Process.exit(self, :exit)
 
       {:complete,mis,active,sender,name,msg_count} ->
-        # IO.puts ("Complete from #{name}, mis:#{mis}, active:#{active}")
         state = %{state | count: state.count + 1}
         {num_msg,sync_overhead} = update_message_counter(state.msg_counter,msg_count,state.round)
         state = put_in(state, [:msg_counter,state.round], {num_msg,sync_overhead})
@@ -248,7 +241,6 @@ def run_master(state) do
 
         if state.count == state.active_size do
           IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}: , next actives: #{length(state.actives)}, inactive: #{state.to_delete}, nodes remove not MIS: #{state.not_mis}, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
-          # IO.puts("ROUND #{state.round} FINISH!!! New In MIS #{state.new_mis}: #{inspect state.mis}, next actives: #{length(state.actives)}, inactive: #{state.to_delete}, \n nodes remove not MIS: #{state.not_mis}: #{inspect state.not_names}")#, msg: #{inspect Map.get(state.msg_counter,state.round)} ")
           state = %{state | active_size: length(state.actives)}
           state = %{state | round: state.round + 1}
           state = %{state | count: 0}
@@ -262,8 +254,8 @@ def run_master(state) do
               MIS number nodes: #{length(state.mis)}, Rounds #{inspect state.round}
                 , Number of messages #{total_msg} , Sync overhead: #{total_overhead}
                  network size: #{length(state.processes)}")
-                 save_results(length(state.processes),"#{length(state.mis)} #{inspect state.round} #{total_msg} #{total_overhead} #{length(state.processes)} \n")
-                #  save_results([length(state.mis),state.round,total_msg,total_overhead,length(state.processes)])
+                 # To save the results uncomment the next line
+                 # save_results(length(state.processes),"#{length(state.mis)} #{inspect state.round} #{total_msg} #{total_overhead} #{length(state.processes)} \n")
 
               state
 
@@ -287,7 +279,8 @@ def run_master(state) do
             topology_edges = format_topology(state.topology)
             r = Integer.to_string(state.round)
             nodes = Integer.to_string(Enum.count(state.processes))
-            save_topology_formated(topology_edges,r,nodes)
+            # To save the topology of the round uncomment the next line
+            # save_topology_formated(topology_edges,r,nodes)
             state = %{state | count_topology: 0}
             next_round = state.actives
             state = %{state | actives: []}

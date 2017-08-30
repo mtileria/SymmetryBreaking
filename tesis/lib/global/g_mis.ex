@@ -19,14 +19,8 @@ defmodule MIS do
     master_id: master,
     mis: false,
     msg_count: 0,
-    st_replies: 0,
-    bfs_request: 0,
     buffer: [],
     member: [],
-    distance: 10000,
-    parent: nil,
-    childs: [],
-    convercast: false,
     to_add: []
   }
 end
@@ -71,7 +65,6 @@ def run(state) do
             send(node,{:value,state.value,my_pid})end)
             state
         false ->
-          # IO.puts "In #{inspect my_pid}, I am alone, complete"
           state = %{state | active: false}
           state = %{state | mis: true}
           send(state.master_id,{:complete,state.mis,state.active,my_pid,state.name,{0,0}})
@@ -86,7 +79,6 @@ def run(state) do
         state =
           if state.n_receive == state.n_size do
             minimum = Enum.all?(state.buffer, fn(x) -> state.value < x  end)
-            # IO.puts ("In #{state.name} recv #{inspect state.buffer}, #{minimum}")
             case minimum == true do
                true->  ## I am mis member
                 state = %{state | mis: true}
@@ -101,18 +93,14 @@ def run(state) do
 
 
     {:ack} ->
-  #  IO.puts ("In #{inspect my_pid} recv ack from : #{inspect sender}")
       state = %{state | ack: state.ack + 1}
       state =
       if state.ack == state.n_size do
-          # IO.puts ("In #{inspect my_pid} recv all ack, size: #{state.n_size}")
           case state.mis == true do
             true ->
-              # IO.puts "I am mis_member #{state.name}, #{state.value}"
               notify_neighbors(state.neighbors,{:safe,:mis_member})
               state
-            false ->   # not mis member but receive all ack
-              # IO.puts "I am NOT mis_member #{state.name}, #{state.value}"
+            false ->
               state = %{state | ack: 0}
               notify_neighbors(state.neighbors,{:safe,:not_mis_member})
               state
@@ -129,8 +117,6 @@ def run(state) do
             if state.safe_count == state.n_size do
                 state = %{state | safe_count: 0}
                 is_neigbour_mis = Enum.any?(state.member, fn(x) -> x == :mis_member end)
-                # IO.puts ("In #{state.name} recv #{inspect state.member},
-                # #{is_neigbour_mis} #{state.mis}, #{state.mis == true or is_neigbour_mis == true}")
                 if (state.mis == true or is_neigbour_mis == true)  do
                     state = %{state | active: false}
                     send(state.master_id,{:complete,state.mis,state.active,my_pid,
@@ -153,13 +139,10 @@ def run(state) do
             state
 
           {:status_request, sender} ->
-            #IO.puts ("In #{inspect my_pid} recv update_netw from : #{inspect sender}")
             send(sender,{:status_reply,my_pid,state.active,String.slice(state.name,1..10)})
             state
 
           {:status_reply,sender,active,name} ->
-            # IO.puts ("In #{inspect my_pid} recv update_reply from : #{inspect sender}, status: #{active}
-            # count: #{state.count}, size: #{state.n_size}")
             state = %{state | count: state.count + 1}
             state =
             cond do
@@ -170,7 +153,6 @@ def run(state) do
             end
             state =
             if state.count == state.n_size do
-              # IO.puts "recv all update_reply in #{inspect my_pid}, size neigh: #{state.n_size}"
                 num_msg = state.n_size
                 state = %{state | neighbors: state.neighbors -- state.to_delete}
                 state = %{state | to_delete: []}
@@ -183,43 +165,6 @@ def run(state) do
             else
               state
             end
-
-            # {:spanning_tree,:root} ->
-            #   state = %{state | root: true}
-            #   state = %{state | st_replies: Enum.count(state.neighbors)}
-            #   Enum.each(state.neighbors, fn(dest) ->
-            #     send dest,{:spanning_tree,my_pid} end)
-            #   state
-            #
-            # {:spanning_tree,origin} ->
-            #   if state.parent == nil do
-           # 		  state = %{state | parent: origin}
-           # 		  send origin,{:reply,:parent_of, my_pid}
-            #     case Enum.count(state.neighbors) > 1 do
-            #       true ->
-            #         Enum.each(state.neighbors -- [origin],
-            #           fn dest -> send dest,{:spanning_tree,my_pid} end)
-            #       false ->
-            #         state = %{state | convercast: true}
-            #         send state.parent,{:convercast,my_pid}
-            #     end
-            #     state
-           # 	  else
-           # 		  send origin, {:reply,:rejected, my_pid}
-            #     state
-           # 	  end
-            #
-            #   {:reply, value, origin} ->
-            #     state = %{state | st_replies: state.st_replies - 1}
-            #      state =
-            #      if value == :parent_of, do:  state = %{state | childs:
-            #        state.childs ++ [origin]}, else: state
-            #      if state.st_replies == 0 and state.convercast == true do
-            #        send(state.parent,{:convercast,})
-            #  	   else
-            #  	     state
-            #      end
-
     end
     run (state)
   end
