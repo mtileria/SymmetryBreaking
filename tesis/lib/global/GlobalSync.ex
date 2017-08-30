@@ -59,8 +59,8 @@ defmodule GlobalSync do
 
   defp add_edges_topology(n) do
     # load edges from file and send list neighbors to every process
-    # stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
-    stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
+     stream = File.stream!("/home/marcos/rhul/tesis/files/" <> Integer.to_string(n) <> "edges.txt")
+    #stream = File.stream!("/home/marcos/rhul/generator/topologies/connected/" <> Integer.to_string(n) <> "edges.txt")
 
     Enum.each(stream, fn(x) ->
       nodes = String.split(x)
