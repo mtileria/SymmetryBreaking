@@ -1,0 +1,7 @@
+c "Sync_mis_beta.ex"
+c "Beta.ex"
+c "B_controller.ex"
+B_controller.start_nodes 8192
+B_controller.spanning_tree
+B_controller.start_mis
+B_controller.finish_simulation

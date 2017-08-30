@@ -1,24 +1,5 @@
-## For Global Synchronizer
-# #-> only for topology 0
-
-**************************
-## To compile the Modules ##
-
-iex
-c "GlobalSync.ex"
+c "g_controller.ex"
 c "g_mis.ex"
-
-
-**************************
-## To execute the Simulation ##
-## output in n_results.log        ##
-GlobalSync.set_values_test
-## E
-
-for _ <- 1..10 do
-GlobalSync.start_nodes(32768)
-GlobalSync.start_mis
-GlobalSync.finish_simulation
-
-#asd
-#
+g_controller.start_nodes(32768)
+g_controller.start_mis
+g_controller.finish_simulation
